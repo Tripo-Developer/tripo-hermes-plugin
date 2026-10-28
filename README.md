@@ -48,8 +48,9 @@ times out on a slow connection, start a new session once the downloads are done.
 
 Already added Tripo's hosted MCP server to config.yaml (`mcp_servers.tripo`, for example from
 Hermes' MCP catalog)? That entry has the same name and replaces this plugin's server, so local file
-paths, downloads and the Desktop cards stop working. Remove it with `hermes mcp remove tripo`, or
-keep it and skip this plugin.
+paths, downloads and the Desktop cards stop working, and its own `trust` applies instead of the
+plugin's `trust: untrusted` (without one, every tool runs without asking). Remove it with
+`hermes mcp remove tripo`, or keep it and skip this plugin.
 
 ## Spending credits: approval
 
@@ -80,38 +81,19 @@ is where you see the estimate.
 
 ### Full creative control (no prompts)
 
-1. **Skip the trust prompt.** On Hermes builds after v0.22.5, YOLO mode skips it: `/yolo` for the
-   current chat, `hermes --yolo` for that process, or `approvals.mode: off` in `config.yaml` for the
-   whole profile (`HERMES_YOLO_MODE=1` works too). Or answer **Always** once per tool you want to run
-   freely.
-2. **Or override the server.** A `mcp_servers.tripo` entry in `config.yaml` replaces the plugin's
-   whole entry: its `trust: untrusted` (an entry without `trust` is fully trusted, so no prompt), its
-   working folder and its environment. Repeat what you want to keep:
-
-   ```yaml
-   mcp_servers:
-     tripo:
-       command: npx
-       args: ["-y", "tripo-cli@0.9.0", "mcp", "--toolset", "full"]
-       env:
-         TRIPO_API_KEY: ${TRIPO_API_KEY}
-         TRIPO_REGION: ov
-         TRIPO_ANALYTICS_ENABLED: "0"
-       trust: untrusted     # keeps the per-call prompt; delete this line for no prompts at all
-   ```
-
-   `${PLUGIN_DATA}` is not expanded in `config.yaml`, so the override loses the plugin's data
-   folder: downloads without a folder land in `tripo-out/` in the folder the server was started in,
-   and tripo-cli keeps its task history in `~/.tripo` (shared with a tripo-cli you use in a
-   terminal) unless you set `TRIPO_HOME`.
+The server always stays `trust: untrusted`: don't replace it with a `mcp_servers.tripo` entry in
+`config.yaml`, because an entry without `trust` is fully trusted and runs every tool without asking.
+To stop the prompts, use Hermes' own approval settings instead. On Hermes builds after v0.22.5, YOLO
+mode skips them: `/yolo` for the current chat, `hermes --yolo` for that process, or
+`approvals.mode: off` in `config.yaml` for the whole profile (`HERMES_YOLO_MODE=1` works too). Or
+answer **Always** once per tool you want to run freely.
 
 These settings apply to unattended runs too (cron jobs, `hermes chat -q`, a gateway with no
 approver), not only to chats you watch. With `approvals.mode: off`, a process started with `--yolo`,
 or an **Always** answer, such a run makes paid calls without asking, and with no spend limit
 declared there is no cap on what it spends.
 
-Prompts come back after `/yolo` is turned off, or after you delete the override and the
-`command_allowlist` lines.
+Prompts come back after `/yolo` is turned off, or after you delete the `command_allowlist` lines.
 
 ## Long jobs and chat apps
 
