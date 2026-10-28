@@ -1,0 +1,1689 @@
+{
+  "tripo_cli": "0.9.0",
+  "toolset": "full",
+  "tools": [
+    {
+      "name": "tripo_plan",
+      "title": "Plan workflow (confirm before running)",
+      "description": "Draft the step list of a Tripo workflow BEFORE calling any other tripo tool: one entry per intended call (tool, what it does, key params). Returns the same steps labelled billed/free so the user can review exactly what will run and what spends credits; present it and wait for explicit confirmation. Free, no upstream call. Skip only for pure read-only queries (balance, usage, task status).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "what the user wants, in one sentence"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "tool": {
+                  "type": "string",
+                  "enum": [
+                    "tripo_plan",
+                    "tripo_text_to_3d",
+                    "tripo_image_to_3d",
+                    "tripo_multiview_to_3d",
+                    "tripo_image_to_splat",
+                    "tripo_upload_image",
+                    "tripo_import_model",
+                    "tripo_generate_image",
+                    "tripo_image_to_multiview",
+                    "tripo_edit_multiview",
+                    "tripo_task_status",
+                    "tripo_task_wait",
+                    "tripo_task_list",
+                    "tripo_texture",
+                    "tripo_convert",
+                    "tripo_decimate",
+                    "tripo_smart_uv",
+                    "tripo_segment",
+                    "tripo_mesh_complete",
+                    "tripo_mesh_edit",
+                    "tripo_smart_segment",
+                    "tripo_rig_check",
+                    "tripo_rig",
+                    "tripo_animate",
+                    "tripo_balance",
+                    "tripo_usage",
+                    "tripo_download"
+                  ],
+                  "description": "tripo tool to call"
+                },
+                "purpose": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "what this step does for the user"
+                },
+                "params": {
+                  "type": "string",
+                  "maxLength": 300,
+                  "description": "key parameters in plain text, e.g. model=P2 quad=true face_limit=5000"
+                }
+              },
+              "required": [
+                "tool",
+                "purpose"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "description": "intended calls in execution order"
+          }
+        },
+        "required": [
+          "goal",
+          "steps"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_text_to_3d",
+      "title": "Text to 3D",
+      "description": "Create a Tripo 3D generation task from a text prompt (Chinese or English, ≤1024 chars). Returns task_id immediately; then call tripo_task_wait until status=success. Spends credits from the connected Tripo account.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "description": "what to generate; concrete nouns + style + materials work best"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "image_seed": {
+            "type": "integer",
+            "description": "seed of the internal text-to-image stage"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.1",
+              "v3.1-20260211",
+              "P1",
+              "P1-20260311",
+              "v3.0",
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123",
+              "P2",
+              "P2-20260801"
+            ],
+            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+          },
+          "texture": {
+            "type": "boolean",
+            "description": "generate textures (default true)"
+          },
+          "pbr": {
+            "type": "boolean",
+            "description": "PBR materials (implies texture)"
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "detailed",
+              "extreme"
+            ],
+            "description": "fast = quickest, same size and credits as standard, needs texture model v3.5 (picked automatically when texture_version is omitted); extreme = 8K, extra credits"
+          },
+          "texture_version": {
+            "type": "string",
+            "enum": [
+              "v3.5",
+              "v3.0",
+              "v2.5"
+            ],
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+          },
+          "delight": {
+            "type": "boolean",
+            "description": "remove baked-in lighting from the reference before texturing (default true; texture model v3.5 only)"
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "description": "detailed = Ultra mode with finer geometry and up to 2M faces (v3.x only; extra credits)"
+          },
+          "face_limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+          },
+          "quad": {
+            "type": "boolean",
+            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "description": "game-style low-poly output (v3.x only; face_limit 500–20000)"
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "description": "segmented editable parts, bare geometry (v3.x only)"
+          },
+          "auto_size": {
+            "type": "boolean",
+            "description": "scale to real-world size in meters (AR/VR, game engines)"
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "meshopt geometry compression for a smaller file"
+          },
+          "export_uv": {
+            "type": "boolean",
+            "description": "UV unwrapping during generation (default true); false = faster and smaller, UVs are created when texturing"
+          },
+          "model_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical geometry on re-runs"
+          },
+          "texture_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical textures; keep model_seed and vary this to re-texture the same shape"
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "-x",
+              "+y",
+              "-y"
+            ],
+            "description": "forward axis of this export only; leave unset when the model will be post-processed (texture/rig/convert) and orient in tripo_convert at the end instead"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "true = validate only, no task and no credits: returns the resolved model, the exact request payload after linkage rules and the adjustment notes; call again without dry_run to submit"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_upload_image",
+      "title": "Re-host image from URL",
+      "description": "Fetch an image URL server-side and re-host it on Tripo, returning a file_token usable as input anywhere. Use when a URL might not be fetchable by Tripo itself (signed/short-lived links, region-locked or slow hosts) or to fail fast before spending credits; plain public URLs can be passed to generation tools directly.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "http(s) URL of a PNG/JPEG/WebP image, ≤20MB"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_import_model",
+      "title": "Import model file",
+      "description": "Import an existing 3D model (GLB/GLTF/FBX/OBJ/STL, ≤150MB) into Tripo as a task, so it gets a preview and a task_id reusable across texture/convert/rig/segment steps without re-uploading. input is a public model file URL, a file_token, or an absolute local model file path (uploaded first).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model file_token or public model file URL; an absolute local file path also works (uploaded first)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_image_to_3d",
+      "title": "Image to 3D",
+      "description": "Create a Tripo 3D generation task from a reference image. input accepts a public image URL (jpg/png/webp), a Tripo file_token, or an image-producing task_id. Returns task_id; then call tripo_task_wait.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+          },
+          "enable_image_autofix": {
+            "type": "boolean",
+            "description": "auto-repair low-quality/blurry/incomplete inputs (slower)"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "default",
+              "align_image"
+            ],
+            "description": "align_image rotates the model to the input viewpoint (needs texture)"
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ],
+            "description": "prioritize input colors (default) or generated geometry"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.1",
+              "v3.1-20260211",
+              "P1",
+              "P1-20260311",
+              "v3.0",
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123",
+              "P2",
+              "P2-20260801"
+            ],
+            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+          },
+          "texture": {
+            "type": "boolean",
+            "description": "generate textures (default true)"
+          },
+          "pbr": {
+            "type": "boolean",
+            "description": "PBR materials (implies texture)"
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "detailed",
+              "extreme"
+            ],
+            "description": "fast = quickest, same size and credits as standard, needs texture model v3.5 (picked automatically when texture_version is omitted); extreme = 8K, extra credits"
+          },
+          "texture_version": {
+            "type": "string",
+            "enum": [
+              "v3.5",
+              "v3.0",
+              "v2.5"
+            ],
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+          },
+          "delight": {
+            "type": "boolean",
+            "description": "remove baked-in lighting from the reference before texturing (default true; texture model v3.5 only)"
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "description": "detailed = Ultra mode with finer geometry and up to 2M faces (v3.x only; extra credits)"
+          },
+          "face_limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+          },
+          "quad": {
+            "type": "boolean",
+            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "description": "game-style low-poly output (v3.x only; face_limit 500–20000)"
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "description": "segmented editable parts, bare geometry (v3.x only)"
+          },
+          "auto_size": {
+            "type": "boolean",
+            "description": "scale to real-world size in meters (AR/VR, game engines)"
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "meshopt geometry compression for a smaller file"
+          },
+          "export_uv": {
+            "type": "boolean",
+            "description": "UV unwrapping during generation (default true); false = faster and smaller, UVs are created when texturing"
+          },
+          "model_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical geometry on re-runs"
+          },
+          "texture_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical textures; keep model_seed and vary this to re-texture the same shape"
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "-x",
+              "+y",
+              "-y"
+            ],
+            "description": "forward axis of this export only; leave unset when the model will be post-processed (texture/rig/convert) and orient in tripo_convert at the end instead"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "true = validate only, no task and no credits: returns the resolved model, the exact request payload after linkage rules and the adjustment notes; call again without dry_run to submit"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_multiview_to_3d",
+      "title": "Multiview to 3D",
+      "description": "Create a 3D model from 2–4 orthographic views of the same object (front required; add left/back/right for accuracy), or from the 4-view sheet of a finished tripo_image_to_multiview / tripo_edit_multiview task via multiview_task_id. Each view accepts an image URL / file_token. Returns task_id; then call tripo_task_wait.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "front": {
+            "type": "string",
+            "minLength": 1,
+            "description": "front view (required unless multiview_task_id is set); an absolute local file path also works (uploaded first)"
+          },
+          "left": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+          },
+          "back": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+          },
+          "right": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+          },
+          "multiview_task_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "a successful tripo_image_to_multiview / tripo_edit_multiview task whose 4 views to use instead of front/left/back/right"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "default",
+              "align_image"
+            ],
+            "description": "align_image rotates the model to the input viewpoint (needs texture)"
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ],
+            "description": "prioritize input colors (default) or generated geometry"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.1",
+              "v3.1-20260211",
+              "P1",
+              "P1-20260311",
+              "v3.0",
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123",
+              "P2",
+              "P2-20260801"
+            ],
+            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+          },
+          "texture": {
+            "type": "boolean",
+            "description": "generate textures (default true)"
+          },
+          "pbr": {
+            "type": "boolean",
+            "description": "PBR materials (implies texture)"
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "detailed",
+              "extreme"
+            ],
+            "description": "fast = quickest, same size and credits as standard, needs texture model v3.5 (picked automatically when texture_version is omitted); extreme = 8K, extra credits"
+          },
+          "texture_version": {
+            "type": "string",
+            "enum": [
+              "v3.5",
+              "v3.0",
+              "v2.5"
+            ],
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+          },
+          "delight": {
+            "type": "boolean",
+            "description": "remove baked-in lighting from the reference before texturing (default true; texture model v3.5 only)"
+          },
+          "geometry_quality": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "detailed"
+            ],
+            "description": "detailed = Ultra mode with finer geometry and up to 2M faces (v3.x only; extra credits)"
+          },
+          "face_limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+          },
+          "quad": {
+            "type": "boolean",
+            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+          },
+          "smart_low_poly": {
+            "type": "boolean",
+            "description": "game-style low-poly output (v3.x only; face_limit 500–20000)"
+          },
+          "generate_parts": {
+            "type": "boolean",
+            "description": "segmented editable parts, bare geometry (v3.x only)"
+          },
+          "auto_size": {
+            "type": "boolean",
+            "description": "scale to real-world size in meters (AR/VR, game engines)"
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "meshopt geometry compression for a smaller file"
+          },
+          "export_uv": {
+            "type": "boolean",
+            "description": "UV unwrapping during generation (default true); false = faster and smaller, UVs are created when texturing"
+          },
+          "model_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical geometry on re-runs"
+          },
+          "texture_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical textures; keep model_seed and vary this to re-texture the same shape"
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "-x",
+              "+y",
+              "-y"
+            ],
+            "description": "forward axis of this export only; leave unset when the model will be post-processed (texture/rig/convert) and orient in tripo_convert at the end instead"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "true = validate only, no task and no credits: returns the resolved model, the exact request payload after linkage rules and the adjustment notes; call again without dry_run to submit"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_image_to_splat",
+      "title": "Image to Gaussian splat",
+      "description": "Create a 3D Gaussian splat (.splat) from a single image — a radiance-field scene capture, not an editable mesh (texture/rig/convert do not apply). input accepts an image URL / file_token / task_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+          },
+          "model_seed": {
+            "type": "integer",
+            "description": "fixed seed → identical splat on re-runs"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_generate_image",
+      "title": "Generate / edit image",
+      "description": "Tripo image generation for 3D prep: text→image when no input is given, image editing/fusion (image(s)+prompt→image) when input or inputs is set. Templates automate common prep: t_pose (character to T-pose), asset_extraction (text mode), 3d_enhance (image mode), character_completion, variants, figure. Negative prompts go inside prompt after `--no`. The resulting task_id can feed tripo_image_to_3d directly.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 1024
+          },
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "source image URL / file_token / task_id — set to edit an image, omit for text-to-image; an absolute local file path also works (uploaded first)"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "description": "several reference images for editing/fusion, referred to as image[1], image[2], … in the prompt; max 4 (seedream) / 10 (banana) / 16 (chat_image); an absolute local file path also works (uploaded first)"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "seedream_v4",
+              "seedream_v5",
+              "banana",
+              "banana_pro",
+              "banana2",
+              "chat_image_1",
+              "chat_image_1.5",
+              "chat_image_2",
+              "chat_image_2.5_flare",
+              "chat_image_2.5_sunburst",
+              "gemini-2.5-flash",
+              "gemini-3-pro",
+              "gemini-3.1-flash"
+            ],
+            "description": "default seedream_v4 (text) / seedream_v5 (image edit; seedream_v4 not accepted there); chat_image_2.5_flare = faster tier, chat_image_2.5_sunburst = refined tier that best preserves untouched areas when editing; chat_image_1 retires 2026-10-23 and chat_image_1.5 on 2026-12-01; gemini-2.5-flash / gemini-3-pro / gemini-3.1-flash are sent as banana / banana_pro / banana2"
+          },
+          "template": {
+            "type": "string",
+            "enum": [
+              "asset_extraction",
+              "character_completion",
+              "t_pose",
+              "3d_enhance",
+              "variants",
+              "figure"
+            ]
+          },
+          "size": {
+            "type": "string",
+            "description": "output size: a tier like 1K/2K/4K (model-dependent) or WxH pixels; default 2048x2048. chat_image_2/2.5 custom WxH: each side ≤3840 and a multiple of 16, long side ≤3× short side, 655360–8294400 total pixels"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "banana models only (1:1, 3:2, 16:9, …); other models take the shape from size or the prompt"
+          },
+          "output_format": {
+            "type": "string",
+            "enum": [
+              "png",
+              "jpeg"
+            ]
+          },
+          "watermark": {
+            "type": "boolean",
+            "description": "seedream models only: visible AI-content watermark (default false)"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "description": "chat_image_2 (low/medium/high) and chat_image_2.5 models (also xhigh/max) only; default low; high/xhigh/max cost extra credits"
+          },
+          "background": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "opaque",
+              "transparent"
+            ],
+            "description": "chat_image_2.5 models only; transparent needs output_format png"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_image_to_multiview",
+      "title": "Image to multiview sheet",
+      "description": "Generate a consistent 4-view sheet (front/left/back/right) from a single image. The resulting task_id can feed tripo_multiview_to_3d (multiview_task_id) or be revised via tripo_edit_multiview.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_edit_multiview",
+      "title": "Edit multiview sheet",
+      "description": "Edit individual views of a tripo_image_to_multiview result before modeling: one instruction per view to change (1–4). input is that task_id (a multiview sheet URL / file_token also works).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "a successful tripo_image_to_multiview task_id; an absolute local file path also works (uploaded first)"
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "view": {
+                  "type": "string",
+                  "enum": [
+                    "front",
+                    "left",
+                    "back",
+                    "right"
+                  ]
+                },
+                "prompt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                }
+              },
+              "required": [
+                "view",
+                "prompt"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "description": "e.g. [{\"view\":\"front\",\"prompt\":\"make the shirt red\"}]"
+          }
+        },
+        "required": [
+          "input",
+          "prompts"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_task_status",
+      "title": "Task status",
+      "description": "Get the current status and fresh download URLs of a Tripo task. URLs in results expire in ~5 minutes — call this again whenever a link is needed. steps=true also returns the raw task detail with its per-stage breakdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "steps": {
+            "type": "boolean",
+            "description": "include the raw per-stage breakdown (server ?step=1)"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_task_wait",
+      "title": "Wait for task",
+      "description": "Poll a Tripo task until it finishes or timeout_seconds elapses (returns latest state either way; generation typically takes 1–4 minutes — call again while status is queued/running). status=success means done; failed/banned include failure_reason.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 55,
+            "description": "default 50; capped at 55 because MCP clients commonly time tool calls out at 60s"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_task_list",
+      "title": "Batch task status",
+      "description": "Get the status and fresh download URLs of up to 100 Tripo tasks in one call (e.g. a batch of generations). Unknown or expired ids are listed under missed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "task_ids"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_texture",
+      "title": "Texture / retexture",
+      "description": "Generate or regenerate textures for a model. input accepts a model-producing task_id, a file_token, or a model file URL (glb). Guidance is optional for Tripo-generated models: prompt (+style_image), or image, or images — exactly one. Billed separately.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "texture_quality": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "detailed",
+              "extreme"
+            ],
+            "description": "fast = quickest, same credits as standard, needs model v3.5 (picked automatically when model is omitted)"
+          },
+          "pbr": {
+            "type": "boolean"
+          },
+          "texture_alignment": {
+            "type": "string",
+            "enum": [
+              "original_image",
+              "geometry"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.5",
+              "v3.0",
+              "v2.5"
+            ],
+            "description": "texture model version (default v3.0; v3.5 = newest, needed for fast/delight)"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 1024,
+            "description": "text describing the desired texture style"
+          },
+          "style_image": {
+            "type": "string",
+            "minLength": 1,
+            "description": "style reference image URL / file_token; only together with prompt; an absolute local file path also works (uploaded first)"
+          },
+          "image": {
+            "type": "string",
+            "minLength": 1,
+            "description": "single reference image URL / file_token (re-supply the original reference when retexturing a task); an absolute local file path also works (uploaded first)"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 4,
+            "maxItems": 4,
+            "description": "exactly 4 reference images in order [front, left, back, right]; an absolute local file path also works (uploaded first)"
+          },
+          "texture_seed": {
+            "type": "integer"
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "texture only these parts of a segmented model"
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ]
+          },
+          "bake": {
+            "type": "boolean",
+            "description": "bake advanced material effects into base textures (default true)"
+          },
+          "delight": {
+            "type": "boolean",
+            "description": "remove baked-in lighting from the reference before texturing (default true; model v3.5 only)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_rig_check",
+      "title": "Rig precheck",
+      "description": "Check whether a model can be rigged before spending credits on tripo_rig. input accepts a model-producing task_id, a file_token, or a model file URL; the finished task output states riggability.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_rig",
+      "title": "Rig model",
+      "description": "Add an animation skeleton to a model (seven named body types, or others). input accepts a model-producing task_id, a file_token, or a model file URL. Required before tripo_animate. Billed separately. Unless model is set: biped (or unset), others and the actorcore/unity/unreal/vrm specs → v3.0 rig, other body types → v2.5 creature rig. Set model=v1.0 up front when the user wants humanoid clips beyond the universal presets (dance, greetings, sports… — the 90+ preset:biped:* clips exist only on v1.0 rigs); the result reports the model used and which preset family tripo_animate must use.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "rig_type": {
+            "type": "string",
+            "enum": [
+              "biped",
+              "quadruped",
+              "hexapod",
+              "octopod",
+              "avian",
+              "serpentine",
+              "aquatic",
+              "others"
+            ],
+            "description": "body type; take it from tripo_rig_check (default biped); others = none of the named topologies (v3.0 only)"
+          },
+          "spec": {
+            "type": "string",
+            "enum": [
+              "tripo",
+              "mixamo",
+              "actorcore",
+              "unity",
+              "unreal",
+              "vrm"
+            ],
+            "description": "bone naming, biped only: tripo (default) or mixamo; v3.0 also offers actorcore, unity (Unity Humanoid), unreal (UE Mannequin) and vrm (VRM 1.0)"
+          },
+          "out_format": {
+            "type": "string",
+            "enum": [
+              "glb",
+              "fbx"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.0",
+              "v3.0-20260909",
+              "v2.5",
+              "v2.5-20260210",
+              "v1.0",
+              "v1.0-20240301"
+            ],
+            "description": "v3.0-20260909 (v3.0) = recommended humanoid rig, faster and better at the same price; the only model for rig_type=others and the actorcore/unity/unreal/vrm specs. v2.5-20260210 (v2.5) = creature rig for quadruped/hexapod/octopod/avian/serpentine/aquatic. v3.0 and v2.5 share the universal presets. v1.0-20240301 (v1.0) = legacy humanoid rig and server default, the only one with the 90+ preset:biped:* clips. Auto-chosen when omitted"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_animate",
+      "title": "Animate rigged model",
+      "description": "Apply preset animations to a rig task (input must be a successful tripo_rig task_id). Preset names depend on the rig model reported by tripo_rig: v3.0 rigs (the default for biped) and v2.5 creature rigs take preset:idle, preset:walk, preset:run, preset:dive, preset:climb, preset:jump, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn plus body-type presets (preset:quadruped:walk, preset:hexapod:walk, preset:octopod:walk, preset:serpentine:march, preset:aquatic:march); v1.0 humanoid rigs take only the 90+ preset:biped:* clips (preset:biped:idle, preset:biped:walk, preset:biped:run, preset:biped:jump, preset:biped:dance_01, preset:biped:wave_goodbye_01, …). Billed per animation, max 5.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "a successful tripo_rig task"
+          },
+          "animations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 5,
+            "description": "e.g. [\"preset:walk\", \"preset:idle\"] for a v3.0 or v2.5 rig, [\"preset:biped:walk\", \"preset:biped:dance_01\"] for a v1.0 humanoid rig"
+          },
+          "out_format": {
+            "type": "string",
+            "enum": [
+              "glb",
+              "fbx"
+            ]
+          },
+          "animate_in_place": {
+            "type": "boolean",
+            "description": "true when game code drives movement"
+          },
+          "export_with_geometry": {
+            "type": "boolean",
+            "description": "include the mesh in the export (default true)"
+          }
+        },
+        "required": [
+          "task_id",
+          "animations"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_convert",
+      "title": "Convert / export format",
+      "description": "Convert a model to a target format (GLTF/USDZ/FBX/OBJ/STL/3MF), optionally retopologizing via face_limit/quad. input accepts a model-producing task_id, a file_token, or a model file URL. Note: quad cannot export GLTF; non-default options bill as \"complex convert\".",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "GLTF",
+              "USDZ",
+              "FBX",
+              "OBJ",
+              "STL",
+              "3MF"
+            ]
+          },
+          "face_limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "quad": {
+            "type": "boolean"
+          },
+          "force_symmetry": {
+            "type": "boolean",
+            "description": "only applies with quad=true"
+          },
+          "texture_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "texture_format": {
+            "type": "string",
+            "enum": [
+              "BMP",
+              "DPX",
+              "HDR",
+              "JPEG",
+              "OPEN_EXR",
+              "PNG",
+              "TARGA",
+              "TIFF",
+              "WEBP"
+            ]
+          },
+          "bake": {
+            "type": "boolean",
+            "description": "bake materials to textures (default true)"
+          },
+          "pack_uv": {
+            "type": "boolean"
+          },
+          "export_vertex_colors": {
+            "type": "boolean",
+            "description": "OBJ/GLTF only"
+          },
+          "with_animation": {
+            "type": "boolean",
+            "description": "keep animations (default true)"
+          },
+          "animate_in_place": {
+            "type": "boolean"
+          },
+          "pivot_to_center_bottom": {
+            "type": "boolean"
+          },
+          "scale_factor": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "auto_size": {
+            "type": "boolean",
+            "description": "scale to real-world size"
+          },
+          "flatten_bottom": {
+            "type": "boolean",
+            "description": "for 3D printing stability"
+          },
+          "flatten_bottom_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "flattening depth used with flatten_bottom (default 0.01)"
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "convert only these named parts"
+          },
+          "fbx_preset": {
+            "type": "string",
+            "enum": [
+              "blender",
+              "3dsmax",
+              "mixamo"
+            ]
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "-x",
+              "+y",
+              "-y"
+            ]
+          }
+        },
+        "required": [
+          "input",
+          "format"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_decimate",
+      "title": "Decimate to low-poly",
+      "description": "Reduce a high-poly model to a low-poly target. input accepts a model-producing task_id, a file_token, or a model file URL. Default model v2.0: face_limit 500–20000 tri / 500–10000 quad, bakes original textures onto the result; v3.0: newest retopology with the same face_limit windows, bake and part_names, billed above v2.0 (quad output above triangle), and the only model that accepts smart_uv (UV unwrap in the same task); legacy v1.0: face_limit required, up to 2,000,000 tri / 150,000 quad, no bake/part_names.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "face_limit": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "quad": {
+            "type": "boolean"
+          },
+          "bake": {
+            "type": "boolean",
+            "description": "bake textures onto the low-poly (not v1.0)"
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "decimate only these named parts (not v1.0)"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v3.0",
+              "v2.0",
+              "v1.0"
+            ]
+          },
+          "smart_uv": {
+            "type": "boolean",
+            "description": "unwrap UVs during retopology at no extra cost (model v3.0 only); no UV layout preview — use tripo_smart_uv for that"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_smart_uv",
+      "title": "Smart UV unwrap",
+      "description": "Re-unwrap a model's UVs and remap its existing textures, rigging and animation onto the new layout. input accepts a model-producing task_id, a file_token, or a model file URL; it must not exceed 80,000 equivalent triangles (a quad counts as two) — larger inputs fail after creation and the credits are refunded, so reduce them with tripo_decimate first. Besides model_url, output_urls carries uv_render_url (UV layout preview image); give it to the user only when they ask to see the UV layout. For retopology plus UVs in one task use tripo_decimate with model=v3.0 and smart_uv=true instead (no layout preview). Billed separately.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "bake": {
+            "type": "boolean",
+            "description": "bake the existing textures onto the new UV layout (default true); false returns geometry with UVs only"
+          },
+          "export_orientation": {
+            "type": "string",
+            "enum": [
+              "+x",
+              "-x",
+              "+y",
+              "-y"
+            ]
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "meshopt geometry compression for a smaller file"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_segment",
+      "title": "Segment mesh into parts",
+      "description": "Split a model into named parts (e.g. for per-part editing or conversion). input accepts a model-producing task_id, a file_token, or a model file URL. v1.0 (default) is geometry-based; v2.0 (Beta) adds semantic labels with granularity/connectivity controls or a reference mask. Follow up with tripo_mesh_complete to close the cut surfaces.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "model": {
+            "type": "string",
+            "enum": [
+              "v1.0-20250506",
+              "v2.0-20260430"
+            ]
+          },
+          "segmentation_granularity": {
+            "type": "string",
+            "enum": [
+              "simple",
+              "balanced",
+              "detailed"
+            ],
+            "description": "v2.0 only (default balanced)"
+          },
+          "split_by_connectivity": {
+            "type": "boolean",
+            "description": "v2.0 only: also split by connected components (default true)"
+          },
+          "ref_image": {
+            "type": "string",
+            "minLength": 1,
+            "description": "v2.0 only: reference image / segmentation mask (URL or file_token); overrides granularity and connectivity; an absolute local file path also works (uploaded first)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_mesh_complete",
+      "title": "Complete segmented mesh",
+      "description": "Close/complete the cut surfaces of a segmentation result (input must be a successful tripo_segment task_id).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "a successful tripo_segment task"
+          },
+          "completion_mode": {
+            "type": "string",
+            "enum": [
+              "ai_completion",
+              "quick_cap"
+            ]
+          },
+          "part_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "complete only these parts (default all)"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_mesh_edit",
+      "title": "Edit mesh region (P2)",
+      "description": "Regenerate or refine one region of an existing model with the P2 pipeline (model is fixed to P2-20260801, Preview). input accepts a model-producing task_id, a file_token, or a model file URL; bbox is the axis-aligned box in model space that bounds the region to redo. Optional ref_image guides the result semantically. Billed separately; the rest of the mesh is kept.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          },
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "[[x1,y1,z1],[x2,y2,z2]] axis-aligned bounding box in model space, e.g. [[-0.5,-0.5,-0.5],[0.5,0.5,0.5]]"
+          },
+          "face_limit": {
+            "type": "integer",
+            "minimum": 100,
+            "description": "max face count of the result (≥100; adaptive when omitted)"
+          },
+          "ref_image": {
+            "type": "string",
+            "minLength": 1,
+            "description": "reference image URL or file_token for semantic guidance; an absolute local file path also works (uploaded first)"
+          },
+          "compress": {
+            "type": "string",
+            "enum": [
+              "geometry"
+            ],
+            "description": "meshopt geometry compression for a smaller file"
+          }
+        },
+        "required": [
+          "input",
+          "bbox"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_smart_segment",
+      "title": "Smart segment (prompted)",
+      "description": "Segment a model or image into semantic parts, optionally guided by a hint. input is a file_token or URL only (task ids are not resolved here); the model pipeline accepts GLB only.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "description": "file_token or URL (GLB model or image; NOT a task_id); an absolute local file path also works (uploaded first)"
+          },
+          "seg_type": {
+            "type": "string",
+            "enum": [
+              "model",
+              "image"
+            ],
+            "description": "default model"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "coarse",
+              "medium",
+              "fine"
+            ]
+          },
+          "hint": {
+            "type": "string",
+            "description": "which parts to find"
+          },
+          "transform": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 16,
+            "maxItems": 16,
+            "description": "seg_type=model only: 4×4 column-major transform for the model (default identity)"
+          }
+        },
+        "required": [
+          "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "tripo_balance",
+      "title": "Account balance",
+      "description": "Credit balance of the connected Tripo account, with a link to the informational plans page.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_usage",
+      "title": "Credit usage",
+      "description": "Per-task credit consumption of the connected Tripo account (task_id, type, credits_consumed, created_at) with total_credits over the returned entries. Pass task_ids to get the actual charges of one workflow (e.g. every task created after a tripo_plan) and report the total plus the per-task breakdown; ids absent from the ledger are listed under missed (failed/cancelled tasks are not charged).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 50,
+            "description": "return at most this many entries (default 50)"
+          },
+          "task_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "only these tasks, e.g. all task_ids of the workflow just finished"
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "tripo_download",
+      "title": "Download task files",
+      "description": "Save the files of a successful task (model, preview.png, task.json and any other outputs) into a local folder and return their absolute paths. Fetches fresh download URLs itself, so it works any time after the task succeeds. Free; writes only to this machine.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "output_dir": {
+            "type": "string",
+            "minLength": 1,
+            "description": "folder to save into (default: tripo-out/<task type>-<task id prefix> under the server working directory)"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ]
+}

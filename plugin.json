@@ -1,0 +1,59 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tripo",
+  "version": "0.1.0",
+  "description": "Generate 3D models with Tripo from Hermes: text, image or multiview to 3D, helper images, texturing, rigging and animation, retopology, segmentation and format conversion. Runs Tripo's official tripo-cli MCP server locally (pinned tripo-cli@0.9.0 over npx stdio, international accounts, your Tripo API key) with the tripo-3d and tripo-game-asset workflow skills. Credit-spending calls ask for approval first. In Hermes Desktop: inline 3D cards, recent generations and a credit chip.",
+  "author": {
+    "name": "VAST",
+    "url": "https://developers.tripo3d.ai/en"
+  },
+  "homepage": "https://developers.tripo3d.ai/en",
+  "license": "MIT",
+  "keywords": [
+    "tripo",
+    "3d",
+    "text-to-3d",
+    "image-to-3d",
+    "texturing",
+    "rigging",
+    "animation",
+    "game-assets",
+    "mcp"
+  ],
+  "extensions": {
+    "com.nousresearch.hermes": {
+      "servers": {
+        "tripo": {
+          "trust": "untrusted",
+          "cost_unit": "credits"
+        }
+      },
+      "config_schema": {
+        "api_key": {
+          "type": "secret",
+          "env": "TRIPO_API_KEY",
+          "label": "Tripo API key",
+          "description": "Create one at developers.tripo3d.ai/en/keys (international Tripo account). Saving it restarts the Tripo tools with the new key."
+        },
+        "show_credits": {
+          "type": "bool",
+          "default": true,
+          "label": "Credit balance in the status bar",
+          "description": "Desktop: show remaining Tripo credits in the status bar."
+        },
+        "inline_viewer": {
+          "type": "bool",
+          "default": true,
+          "label": "Inline 3D cards in chat",
+          "description": "Desktop: render ::tripo-model replies as interactive 3D cards. Off shows them as text."
+        },
+        "gallery_limit": {
+          "type": "int",
+          "default": 24,
+          "label": "Recent generations shown",
+          "description": "How many recent Tripo generations the Desktop list shows (1-60)."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "tripo": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tripo-cli@0.9.0", "mcp", "--toolset", "full"],
+      "cwd": "${PLUGIN_DATA}",
+      "env": {
+        "TRIPO_API_KEY": "${TRIPO_API_KEY}",
+        "TRIPO_HOME": "${PLUGIN_DATA}/tripo-home",
+        "TRIPO_REGION": "ov",
+        "TRIPO_ANALYTICS_ENABLED": "0"
+      }
+    }
+  }
+}
