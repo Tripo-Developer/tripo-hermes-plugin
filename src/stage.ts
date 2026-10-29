@@ -15,7 +15,6 @@ import {
   AnimationMixer,
   Box3,
   Clock,
-  Color,
   DirectionalLight,
   GridHelper,
   LoopOnce,
@@ -63,28 +62,10 @@ export interface Stage {
   dispose: () => void
 }
 
-/** A CSS colour as #rrggbb. Theme values can take forms three.js cannot parse (color-mix(...)), so let the browser
- *  paint it and read the pixel back; an invalid value keeps the fallback. */
-export function cssHex(value: string, fallback = '#1b1d22'): string {
-  try {
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = 1
-    const g = canvas.getContext('2d')
-    if (!g) {
-      return fallback
-    }
-    g.fillStyle = fallback
-    g.fillStyle = value
-    g.fillRect(0, 0, 1, 1)
-    const [r, gr, b] = g.getImageData(0, 0, 1, 1).data
-    return `#${[r, gr, b].map(n => n.toString(16).padStart(2, '0')).join('')}`
-  } catch {
-    return fallback
-  }
-}
-
-export function createStage(host: HTMLElement, background: string): Stage {
-  const renderer = new WebGLRenderer({ antialias: true, alpha: false })
+export function createStage(host: HTMLElement): Stage {
+  // Transparent: Desktop's panel colours are translucent color-mix() values that only look right composited over the
+  // page, so the viewer's own CSS background shows through instead of being copied into the scene.
+  const renderer = new WebGLRenderer({ antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = SRGBColorSpace
   renderer.toneMapping = ACESFilmicToneMapping
@@ -95,7 +76,6 @@ export function createStage(host: HTMLElement, background: string): Stage {
   host.appendChild(renderer.domElement)
 
   const scene = new Scene()
-  scene.background = new Color(cssHex(background))
   const pmrem = new PMREMGenerator(renderer)
   const envTexture = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
   scene.environment = envTexture

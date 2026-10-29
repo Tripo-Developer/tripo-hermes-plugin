@@ -17,7 +17,7 @@ import { type ActiveTask, type ProgressState, stageWord } from './active.ts'
 import { cardChat, type ChatSender, recordedChat } from './chat.ts'
 import { type Filter, type GalleryRow, kindOf, rowFromTask, type StorageStatus, visibleRows } from './gallery.ts'
 import { extensionOf, mtlLibOf, mtlTextures, siblingPath } from './parse-model.ts'
-import { createStage, cssHex, dataUrlToBuffer, type ModelStats, type Stage } from './stage.ts'
+import { createStage, dataUrlToBuffer, type ModelStats, type Stage } from './stage.ts'
 import { type Balance, balanceLabel } from './status.ts'
 import { TaskCard } from './task-card.tsx'
 
@@ -183,7 +183,7 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
     }
     let stage: Stage
     try {
-      stage = createStage(el, cssHex(getComputedStyle(el.parentElement ?? el).backgroundColor))
+      stage = createStage(el)
     } catch {
       setState({
         phase: 'error',
