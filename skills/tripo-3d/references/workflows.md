@@ -1,14 +1,17 @@
 # Tripo workflows
 
-Pick the chain from what the user is building, put every step into `tripo_plan`, and get a yes
-before the first billed call. Each arrow is a task followed by waiting until it finishes; the
+Pick the chain from what the user is building, put every step into `tripo_plan`, and get the
+user's `clarify` pick (a model with its credits, or "Go ahead") before the first billed call. Each
+arrow is a task followed by waiting until it finishes; the
 `input` of each step is the previous step's task_id unless noted. GLB is the native output: a
 `tripo_convert` step is only worth its credits when the target needs another format.
 
 ## By goal
 
-- **Quick look or concept model**: `tripo_text_to_3d` or `tripo_image_to_3d` with defaults →
-  `tripo_download`. Show the preview and offer the next steps instead of guessing them.
+- **Quick look or concept model**: from words only, a concept image first (`tripo_generate_image`;
+  `tripo_text_to_3d` only when the user skips it), then `tripo_image_to_3d` with defaults once the
+  user wants the model → `tripo_download`. Show the preview and offer the next steps instead of
+  guessing them.
 - **Game prop, mobile / WebGL / many instances**: explicit `model: "P2"` and a confirmed
   `face_limit` → `tripo_convert` `{format: "FBX", texture_size: 2048}` for Unity or Unreal;
   Three.js and Godot take the GLB as is. More in the `tripo-game-asset` skill.
@@ -68,8 +71,8 @@ whole batch. `tripo_task_list` checks up to 100 task ids in one call. Report the
 
 ## Example: rigged character for Unity
 
-1. `tripo_plan` `{goal: "rigged knight with walk and idle for Unity", steps: [text_to_3d, rig_check, rig, animate, download]}` → show it, wait for yes.
-2. `tripo_text_to_3d` `{prompt: "a knight in full armor, T-pose, standing straight", model: "P2", face_limit: 20000}` → wait.
+1. `tripo_plan` `{goal: "rigged knight for Unity from the user's T-pose image, with walk and idle", steps: [image_to_3d, rig_check, rig, animate, download]}` → confirm with `clarify`.
+2. `tripo_image_to_3d` `{input: "/Users/me/knight-tpose.png", model: "P2", face_limit: 20000}` → wait.
 3. `tripo_rig_check` `{input: <generation task>}` → wait; read `riggable` and `rig_type`.
 4. `tripo_rig` `{input: <generation task>, rig_type: "biped", spec: "unity", out_format: "fbx"}` → wait.
 5. `tripo_animate` `{task_id: <rig task>, animations: ["preset:walk", "preset:idle"], out_format: "fbx", animate_in_place: true}` → wait.

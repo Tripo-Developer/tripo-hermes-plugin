@@ -75,7 +75,7 @@ test('a Desktop with the seam gets a model renderer for this package’s own MCP
   assert.equal(card.type.name, 'TranscriptCard')
   assert.equal(card.props.attrs.path, media().file.path)
   // Anything that is not a model the viewer opens keeps the built-in row.
-  for (const name of ['preview.png', 'task.json', 'model.obj', 'model.usdz']) {
+  for (const name of ['preview.png', 'task.json', 'model.mtl', 'model.zip']) {
     const fallback = pick(renderers[0].data.render(media({ file: { ...media().file, name, path: `/tmp/${name}` } })))
     assert.equal(fallback.props.children, 'BUILT-IN FILE ROW', name)
   }

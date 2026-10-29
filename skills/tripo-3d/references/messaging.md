@@ -60,5 +60,19 @@ of it. On a chat app:
    unsupported (`notify_unsupported`: cron jobs, `hermes chat -q`), no wake will come: wait inline
    with `tripo_task_wait`, calling it again while the status is `queued` or `running`.
 
+## Next steps
+
 At the end of the workflow report the credits with `tripo_usage` (all task ids of the plan) and
-list the next steps as a short numbered list.
+list the next steps as a short numbered list with their credits, the same follow-ups the Desktop
+card's Next menu offers for that result:
+
+- a model (made from text, an image or views; retextured, imported or with fewer faces):
+  Texture it · 10–30 credits (standard, detailed or extreme), Lower the face count · 30 credits,
+  Check rigging · free, Rig it · 25 credits, Split into parts · 40 credits; a text-to-3D model
+  also Regenerate · the same credits again;
+- a rigged model: Animate · 10 credits per clip;
+- an image or a multiview sheet: Make a 3D model · 30–110 credits (v3.1 30, P1 50, P2 110).
+
+A reply with just a number picks that step and confirms a fixed price. When the price depends on
+a choice (quality, clips, model), ask it with the credits of each option first. Rig it runs the
+free rig check first and stops when the model is not riggable.

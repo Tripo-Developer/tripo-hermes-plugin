@@ -1,5 +1,6 @@
 // node --test tests/active.test.mjs
-// The pure Desktop modules (src/active.ts, src/status.ts) driven with fake events, a fake clock and a counting rest.
+// The pure Desktop modules (src/active.ts, src/status.ts, src/chat.ts, src/provenance.ts, src/gallery.ts) driven
+// with fake events, a fake clock, a fake host and a counting rest.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
@@ -11,8 +12,12 @@ import {
   MAX_FAILURES,
   MISSING_GRACE_MS,
   POLL_MS,
+  stageWord,
   taskStatuses
 } from '../src/active.ts'
+import { cardChat, OPEN_RETRIES, OPEN_RETRY_MS, recordedChat } from '../src/chat.ts'
+import { kindOf, rowFromTask, visibleRows } from '../src/gallery.ts'
+import { creationsFrom } from '../src/provenance.ts'
 import { balanceLabel, createStatusStore, DEFAULT_SETTINGS, isForeign, watchScope } from '../src/status.ts'
 
 const A = 'a1b2c3d4-0000-4000-8000-000000000001'
@@ -309,4 +314,120 @@ test('events tagged with another profile or connection are foreign; untagged one
   stop()
   state.profile.set('other')
   assert.deepEqual(seen, ['local\nwork'])
+})
+
+test('the progress line names what Tripo is doing, or the task type it has no word for', () => {
+  assert.equal(stageWord('text_to_model'), 'modelling')
+  assert.equal(stageWord('animate_rig'), 'rigging')
+  assert.equal(stageWord('generate_multiview_image'), 'drawing views')
+  assert.equal(stageWord('some_new_type'), 'some new type')
+  assert.equal(stageWord(''), 'working')
+})
+
+test('each creating call is recorded with the task it made, direct or through the tool_call bridge', () => {
+  const queued = id => JSON.stringify({ content: [{ type: 'text', text: JSON.stringify({ task_id: id, status: 'queued' }) }] })
+  assert.deepEqual(creationsFrom('mcp__tripo__tripo_text_to_3d', { prompt: 'a fox' }, queued(A)), [
+    { task_id: A, tool: 'tripo_text_to_3d', args: { prompt: 'a fox' } }
+  ])
+  // A dry run or an error names no task; reads, downloads and other servers create nothing.
+  assert.deepEqual(creationsFrom('mcp__tripo__tripo_text_to_3d', { dry_run: true }, JSON.stringify({ dry_run: true, credits: 30 })), [])
+  assert.deepEqual(creationsFrom('mcp__tripo__tripo_task_status', { task_id: A }, queued(A)), [])
+  assert.deepEqual(creationsFrom('mcp__tripo__tripo_download', { task_id: A }, queued(A)), [])
+  assert.deepEqual(creationsFrom('mcp__meshy__meshy_text_to_3d', {}, queued(A)), [])
+  // The bridge lists one result per call, in order; JSON text anywhere is read.
+  const calls = JSON.stringify([
+    { name: 'mcp__tripo__tripo_balance', arguments: {} },
+    { name: 'mcp__tripo__tripo_rig', arguments: JSON.stringify({ task_id: B }) }
+  ])
+  assert.deepEqual(creationsFrom('tool_call', { calls }, JSON.stringify({ results: [{ balance: 100 }, queued(A)] })), [
+    { task_id: A, tool: 'tripo_rig', args: { task_id: B } }
+  ])
+  assert.deepEqual(creationsFrom('tool_call', { name: 'mcp__tripo__tripo_texture', arguments: { task_id: B } }, queued(A)), [
+    { task_id: A, tool: 'tripo_texture', args: { task_id: B } }
+  ])
+  assert.deepEqual(creationsFrom('tool_call', null, queued(A)), [])
+})
+
+function chatHost(accepts = () => true) {
+  const host = {
+    sent: [],
+    opened: [],
+    composer: {
+      submit(id, text) {
+        host.sent.push([id, text])
+        return accepts(id)
+      }
+    },
+    async openSession(id) {
+      host.opened.push(id)
+    }
+  }
+  return host
+}
+
+test('a card sends to the chat whose transcript shows it; an older Desktop to the composer in use', async () => {
+  const host = chatHost()
+  assert.equal(await cardChat(host, 's-1').submit('Rig it'), true)
+  assert.equal(await cardChat(host, undefined).submit('Rig it'), true)
+  assert.deepEqual(host.sent, [['s-1', 'Rig it'], [null, 'Rig it']])
+  assert.equal(await cardChat({}, 's-1').submit('Rig it'), false, 'a Desktop without the composer API')
+  const throws = { composer: { submit: () => { throw new Error('no composer') } } }
+  assert.equal(await cardChat(throws, 's-1').submit('Rig it'), false)
+})
+
+test('the gallery sends to the chat that made the task, opening it until its composer takes the text', async () => {
+  const waits = []
+  const wait = async ms => void waits.push(ms)
+  const made = async () => 's-1'
+
+  let host = chatHost()
+  assert.equal(await recordedChat(host, made, wait).submit('Rig it'), true, 'that chat is on screen')
+  assert.deepEqual([host.sent, host.opened], [[['s-1', 'Rig it']], []])
+
+  let tries = 0
+  host = chatHost(() => ++tries > 3)
+  assert.equal(await recordedChat(host, made, wait).submit('Rig it'), true, 'opened, then its composer mounts')
+  assert.deepEqual([host.opened, waits], [['s-1'], [OPEN_RETRY_MS, OPEN_RETRY_MS]])
+
+  waits.length = 0
+  host = chatHost(() => false)
+  assert.equal(await recordedChat(host, made, wait).submit('Rig it'), false, 'its composer never mounts')
+  assert.equal(host.sent.length, 1 + OPEN_RETRIES)
+  assert.equal(waits.length, OPEN_RETRIES)
+
+  for (const resolve of [async () => null, async () => { throw new Error('offline') }]) {
+    host = chatHost()
+    assert.equal(await recordedChat(host, resolve, wait).submit('Rig it'), true)
+    assert.deepEqual([host.sent, host.opened], [[[null, 'Rig it']], []], 'no recorded chat: the composer in use')
+  }
+  host = chatHost()
+  delete host.openSession
+  assert.equal(await recordedChat(host, made, wait).submit('Rig it'), true)
+  assert.deepEqual(host.sent, [[null, 'Rig it']], 'a Desktop that cannot open chats: the composer in use')
+
+  host = chatHost(() => false)
+  host.openSession = async () => { throw new Error('deleted chat') }
+  assert.equal(await recordedChat(host, made, wait).submit('Rig it'), false)
+  let asked = 0
+  const noComposer = { async openSession() { throw new Error('must not open') } }
+  assert.equal(await recordedChat(noComposer, async () => (++asked, 's-1'), wait).submit('Rig it'), false)
+  assert.equal(asked, 0, 'a Desktop without the composer API opens nothing')
+})
+
+test('the gallery search and filter, and the row for a task the list does not have yet', () => {
+  const [C] = ids(1)
+  const row = (task_id, type, prompt, kind) => ({ task_id, type, kind, prompt, thumbnail: null, has_model: kind !== 'image', path: null, preview_path: null })
+  const rows = [row(A, 'text_to_model', 'A red Fox', 'model'), row(B, 'generate_image', 'a blue fox', 'image'), row(C, 'animate_rig', null)]
+  const shown = (filter, query) => visibleRows(rows, filter, query).map(r => r.task_id)
+  assert.deepEqual(shown('all', ''), [A, B, C])
+  assert.deepEqual(shown('image', ''), [B])
+  assert.deepEqual(shown('model', ''), [A, C], 'a row from a backend without kind is a model')
+  assert.deepEqual(shown('all', '  FOX red '), [A], 'every word, any case')
+  assert.deepEqual(shown('all', 'rig'), [C], 'the type is searched')
+  assert.deepEqual(shown('all', B.slice(0, 8)), [B], 'and the task id')
+  assert.deepEqual(shown('image', 'red'), [])
+
+  const image = rowFromTask({ task: B, type: 'generate_image', prompt: 'a blue fox', credits: 5, thumbnail: 'https://x/y.png', has_model: false, path: null })
+  assert.deepEqual([image.task_id, kindOf(image), image.credits, image.thumbnail], [B, 'image', 5, 'https://x/y.png'])
+  assert.equal(kindOf(rowFromTask({ task: A, type: 'text_to_model', prompt: null, thumbnail: null, has_model: true, path: '/m.glb' })), 'model')
 })

@@ -2,7 +2,7 @@
   "name": "hermes-tripo-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Tripo 3D viewer for Hermes Desktop: inline transcript cards, recent generations and a credit chip, rendered with three.js.",
+  "description": "Tripo 3D viewer for Hermes Desktop: inline transcript cards with Next and Download menus, a Tripo 3D gallery and a credit chip, rendered with three.js.",
   "license": "MIT",
   "type": "module",
   "scripts": {

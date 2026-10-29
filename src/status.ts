@@ -8,11 +8,12 @@
 export interface TripoSettings {
   show_credits: boolean
   inline_viewer: boolean
+  auto_rotate: boolean
   gallery_limit: number
 }
 
 /** Mirrors plugin.json's config_schema defaults until the backend answers. */
-export const DEFAULT_SETTINGS: TripoSettings = { show_credits: true, inline_viewer: true, gallery_limit: 24 }
+export const DEFAULT_SETTINGS: TripoSettings = { show_credits: true, inline_viewer: true, auto_rotate: true, gallery_limit: 24 }
 
 export interface Balance {
   configured: boolean

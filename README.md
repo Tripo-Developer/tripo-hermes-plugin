@@ -15,8 +15,8 @@ This is a portable [Agent Plugins v1](https://agent-plugins.org) package. One in
   rules (plan and confirm before spending, keep polling until a task finishes, never re-create an
   uncertain task, report the credits used), because Hermes does not pass MCP server instructions
   to the model, plus scenario recipes and a tool reference.
-- A Hermes Desktop half (`desktop/plugin.js`, `dashboard/`): inline 3D cards, recent generations
-  and a credit chip.
+- A Hermes Desktop half (`desktop/plugin.js`, `dashboard/`): inline 3D cards with Next and
+  Download menus, a Tripo 3D gallery and a credit chip.
 
 ## Install
 
@@ -126,9 +126,18 @@ CLI and other surfaces reach the same values:
 | Tripo API key (`api_key`) | — | `hermes config set TRIPO_API_KEY tsk_...` (stored in `.env`, never `config.yaml`) |
 | Credit balance in the status bar (`show_credits`) | on | `hermes config set plugins.entries.tripo.settings.show_credits false` |
 | Inline 3D cards in chat (`inline_viewer`) | on | `hermes config set plugins.entries.tripo.settings.inline_viewer false` (directive lines then show as text) |
+| Auto-rotate in the gallery (`auto_rotate`) | on | `hermes config set plugins.entries.tripo.settings.auto_rotate false` |
 | Recent generations shown (`gallery_limit`) | 24 | `hermes config set plugins.entries.tripo.settings.gallery_limit 10` (1–60) |
+| Blender optimized copy (`blender_handoff`) | ask | `hermes config set plugins.entries.tripo.settings.blender_handoff always` (`ask`, `always` or `never`) |
+| Default 3D model (`default_model`) | ask | `hermes config set plugins.entries.tripo.settings.default_model P2` (`ask`, `v3.1` or `P2`) |
+| Blender executable (`blender_path`) | empty (PATH and the usual install folders) | `hermes config set plugins.entries.tripo.settings.blender_path /path/to/blender` |
 
-Desktop applies a saved change immediately; nothing needs a restart.
+Desktop applies a saved change immediately; nothing needs a restart. The agent reads
+`blender_handoff`, `default_model` and `blender_path` when it needs them, so a change counts from
+the next Tripo job. With a `default_model` the agent skips the model question but still shows the
+price and waits for your yes. The Blender copy runs your own Blender 4.2 or newer after a download:
+a new `.blend` plus GLB or FBX with packed textures and, only with a triangle budget you give, fewer
+triangles; it never touches the download or an open Blender scene.
 
 ## Hermes Desktop
 
@@ -137,12 +146,28 @@ you get, rendered with stock three.js:
 
 - **Inline 3D cards.** After a download the agent ends its reply with
   `::tripo-model{path="/abs/model.glb" task="<task_id>"}`; Desktop shows it as a card you can orbit,
-  zoom and switch to wireframe. Other clients show the line as text. Right after starting a job the
-  agent can post just `::tripo-model{task="<task_id>"}` and reply at once: the card shows Tripo's
-  progress, then the preview, and saves the model into the plugin's folder (free) when you click
-  View in 3D.
-- **Recent generations** (⌘K → "Tripo: recent generations", or click the credit chip): your recent
-  Tripo tasks next to the models already on this machine, with a viewer.
+  zoom and switch to wireframe or a grid, with the file's size and a button that shows the file in
+  your file manager. Other clients show the line as text. Right after starting a model the agent
+  posts just `::tripo-model{task="<task_id>"}` and replies at once, waiting only when a next step
+  needs the finished model: the card shows Tripo's progress and stage (modelling, texturing,
+  rigging…), then the preview, and saves the model into the plugin's folder (free) when you click
+  View in 3D. The viewer opens GLB, glTF, FBX, OBJ (with the `.mtl` and textures beside it), STL,
+  USDZ with text USD layers and 3MF, and stands Z-up files upright; a conversion that only changed
+  the file format shows its source model.
+- **Next, Download and Open** in a finished card's header, beside the credits the task cost.
+  *Next* lists the follow-ups Tripo offers for that task with their credits (texture, lower the face
+  count, check or add a rig, split into parts, animate, regenerate; for an image, make a 3D model).
+  A pick sends a chat message, so the agent runs it behind the usual approval prompt; the menu
+  itself never spends. *Download* saves a file Tripo made (the textured or untextured model, the preview)
+  into the plugin's folder, free, and shows it; *Convert to …* sends a chat message like Next.
+  *Open* shows the task in the gallery.
+- **Tripo 3D gallery** (⌘K → "Tripo: recent generations", the credit chip, or a card's Open): your
+  recent Tripo images and models next to the ones already on this machine, with a prompt search and
+  All / Images / Models filters. The selected one opens in the viewer (an image as a picture) with
+  the same menus, its task ID with Copy ID, and *Made from*: the prompt, source image or parent task,
+  model, settings and credits, plus Open chat back to the chat that made it (for tasks made in this
+  profile's Desktop chats). The list ends with how much the plugin has saved and Show folder. Tripo's
+  download links expire after about 5 minutes, so save what you want to keep.
 - **Credit chip** in the status bar, refreshed after every Tripo tool call; while a Tripo task runs
   it shows the task's progress instead.
 - On Desktop builds with plugin media renderers, a model file a Tripo tool saved and the reply
@@ -150,9 +175,10 @@ you get, rendered with stock three.js:
 
 The renderer never reads files or holds the key. `dashboard/plugin_api.py` (mounted at
 `/api/plugins/tripo/` once the plugin is enabled) answers the viewer: the balance and recent tasks
-from Tripo's API, model and image bytes from the plugin's data folder or your home folder only
-(GLB, glTF, FBX and preview images up to 128 MB, symlinks resolved first), and downloads of task
-results from Tripo's result storage only.
+from Tripo's API, the follow-ups and their prices from the plugin's own price table (it never starts
+a task), model and image bytes from the plugin's data folder or your home folder only (the viewer's
+model formats, an OBJ's `.mtl` and images, up to 128 MB, symlinks resolved first), and downloads of
+task results from Tripo's result storage only.
 
 ## Tools
 
@@ -189,6 +215,10 @@ Tasks and account: `tripo_plan`, `tripo_task_status`, `tripo_task_wait`, `tripo_
 - The Desktop half's backend reads your balance and recent tasks from the same API with your key,
   and downloads a finished model from Tripo's result storage (no key sent) only when you open it.
   Desktop loads task previews straight from Tripo's short-lived result links.
+- For *Made from*, Desktop records each Tripo task a chat starts (the task id, the tool, the chat's
+  id, the prompt, the source image's path or its link without the query, the parent task and a few
+  settings such as the model) in `provenance.json` in the plugin's data folder, only for chats of
+  the profile that holds them; it keeps the newest 2,000 tasks.
 
 ## Why local and not the hosted server
 
@@ -217,7 +247,8 @@ npm ci && npm run typecheck && npm test && npm run build     # Desktop half; com
 ## Attribution
 
 The MCP server (tripo-cli), the workflow rules the skills carry and the packaging are by VAST, the
-company behind Tripo, MIT. The Desktop viewer adapts parts of the Meshy plugin's viewer from
+company behind Tripo, MIT. The Desktop viewer adapts parts of the Meshy plugin's viewer, and the
+Blender handoff (its script, references and test) adapts the Meshy plugin's, from
 [Hermes Official Plugins](https://github.com/NousResearch/hermes-official-plugins) (MIT, Copyright
 (c) 2025 Nous Research); `LICENSE` carries that notice. `desktop/plugin.js` bundles three.js (MIT, its
 notice kept in the bundle) and the meshoptimizer decoder that ships with it (MIT, notice in `LICENSE`),

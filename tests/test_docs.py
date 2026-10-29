@@ -109,3 +109,97 @@ def test_the_docs_state_the_servers_longest_wait():
     longest = wait["inputSchema"]["properties"]["timeout_seconds"]["maximum"]
     assert f"up to {longest} s" in MAIN_SKILL
     assert f"at most {longest} s" in README
+
+
+PRICES = _flat(SKILL_DOCS["skills/tripo-3d/references/tools.md"].split("\n## Prices\n", 1)[1])
+
+
+def test_every_offered_image_model_has_a_price():
+    """The model choice quotes each option's credits; gemini-* names are aliases and chat_image_1* are retiring."""
+    image = next(t for t in TOOLS if t["name"] == "tripo_generate_image")
+    offered = {m for m in image["inputSchema"]["properties"]["model"]["enum"]
+               if not m.startswith(("gemini-", "chat_image_1"))}
+    assert offered <= set(re.findall(r"`([\w.]+)`", PRICES)), offered - set(re.findall(r"`([\w.]+)`", PRICES))
+
+
+def test_paid_choices_are_asked_with_clarify_and_the_listed_credits():
+    flat = _flat(MAIN_SKILL)
+    assert "ask with the `clarify` tool: one choice per option naming it and its approximate credits" in flat
+    examples = re.findall(r'"(v3\.1|P1|P2)[^"]*· about (\d+) credits"', flat)
+    assert len(examples) == 3, examples
+    for model, credits in examples:
+        row = re.search(rf"\| (?:image- or multiview-to-3D|any generation), {re.escape(model)} \| \d+ bare / (\d+) textured",
+                        PRICES)
+        assert row and row.group(1) == credits, model
+
+
+def test_desktop_shows_images_in_the_chat_and_models_in_the_card():
+    desktop = _flat(MAIN_SKILL.split("- **Hermes Desktop:**", 1)[1].split("\n- **", 1)[0])
+    assert "::tripo-model{path=" in desktop
+    assert re.search(r"An image result .{0,200}a line that is only `MEDIA:<absolute path>`", desktop)
+    assert "This button message is my confirmation of the N-credit cost." in desktop
+
+
+def test_desktop_posts_a_models_card_right_after_the_create():
+    wait = _flat(MAIN_SKILL.split("4. **Wait for the task.**", 1)[1].split("\n5. ", 1)[0])
+    assert "**Hermes Desktop: don't wait for a model when nothing else needs it.** Right after the create" in wait
+    assert '`::tripo-model{task="<task_id>" title="<short name>"}` on its own line; steps 6–7 don\'t apply' in wait
+
+
+def test_missing_tools_stop_the_agent_instead_of_another_tripo_server():
+    run = _flat(MAIN_SKILL.split("\n## How to Run\n", 1)[1].split("\n## ", 1)[0])
+    assert "If `tool_search` finds no `mcp__tripo__` tool, stop" in run
+    assert "`hermes gateway restart`" in run
+    assert "Never enable, add or switch to another Tripo server" in run
+
+
+def test_asking_tripo_for_an_image_is_in_scope():
+    description = re.search(r"^description: (.+)$", MAIN_SKILL, re.M).group(1)
+    when = _flat(MAIN_SKILL.split("\n## When to Use\n", 1)[1].split("\n## ", 1)[0])
+    assert "an image made with Tripo" in description
+    assert "asks Tripo for an image (`tripo_generate_image`)" in when
+    assert "unless the user asks Tripo for one" in when
+
+
+def test_capability_questions_are_answered_from_the_skill_not_the_web():
+    when = _flat(MAIN_SKILL.split("\n## When to Use\n", 1)[1].split("\n## ", 1)[0])
+    assert "The user asks what Tripo can do: answer with a short overview from this skill" in when
+    assert "No web search and no loading of every tool schema for that" in when
+
+
+def test_a_model_from_words_starts_with_a_concept_image():
+    flat = _flat(MAIN_SKILL)
+    assert "A model asked for in words only (no image, task id or model file) starts with a concept image" in flat
+    assert "as the last choice, skipping the image for 3D straight from text" in flat
+    assert "A skip pick runs `tripo_text_to_3d` with that model" in flat
+    assert '"seedream_v4 · about 5 credits", "banana2 · about 10 credits", "banana_pro · about 15 credits"' in flat
+    assert "Images get the same question unless the user names a model" in flat
+    game = _flat(SKILL_DOCS["skills/tripo-game-asset/SKILL.md"])
+    assert "starts with a concept image (tripo-3d, Procedure step 1)" in game
+
+
+def test_the_clarify_pick_runs_the_call_without_a_second_question():
+    step1 = _flat(MAIN_SKILL.split("\n1. **Plan, then confirm.**", 1)[1].split("\n2. **", 1)[0])
+    assert '"Go ahead · about N credits"' in step1
+    assert "make the billed call right away in the same turn and never ask again in text" in step1
+
+
+def test_the_skills_read_the_settings_only_the_agent_acts_on():
+    """No backend or Desktop code reads these: a key the skills never `hermes config get` would do nothing."""
+    skills = _flat("\n".join(SKILL_DOCS.values()))
+    unread = [key for key in ("default_model", "blender_handoff", "blender_path")
+              if f"hermes config get plugins.entries.{MANIFEST['name']}.settings.{key}" not in skills]
+    assert not unread, unread
+
+
+def test_a_default_model_skips_the_model_question_not_the_price():
+    models = _flat(MAIN_SKILL.split("\n## Models\n", 1)[1].split("\n## ", 1)[0])
+    assert "without the model question" in models
+    assert "the plan still names it and its credits for the user's yes" in models
+
+
+def test_the_readme_lists_every_choice_of_a_setting():
+    for key, spec in SCHEMA.items():
+        if "choices" in spec:
+            row = next((line for line in README.splitlines() if line.startswith("|") and f"(`{key}`)" in line), "")
+            assert all(f"`{choice}`" in row for choice in spec["choices"]), (key, row)

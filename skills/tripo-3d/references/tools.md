@@ -167,5 +167,5 @@ change; the authoritative number is `credits_consumed` on the result and `tripo_
 | segment / mesh complete | 40 / 50 (`quick_cap` 30) |
 | smart segment | 55 model / 85 image |
 | rig check / rig / animate | free / 25 / 10 per clip |
-| text-to-image, image editing | 5–20 by model and size tier; chat_image `quality` high and above costs more |
+| text-to-image, image editing (default size) | `seedream_v4`, `seedream_v5`, `banana` 5; `banana2`, `chat_image_2`, `chat_image_2.5_flare` 10; `banana_pro` 15; `chat_image_2.5_sunburst` not listed yet (say so, then report `credits_consumed`); larger size tiers and chat_image `quality` high and above cost more |
 | image-to-multiview / edit-multiview / image-to-splat | 10 / 5 per edited view / 30 |

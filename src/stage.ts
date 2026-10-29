@@ -1,6 +1,6 @@
 /**
  * The three.js stage: one WebGLRenderer, a camera with orbit controls, studio lighting, and whichever model is
- * loaded (GLB/glTF or FBX: see parse-model.ts). Plain DOM + three, no React: the React side mounts a <div>, hands it
+ * loaded (formats: see parse-model.ts). Plain DOM + three, no React: the React side mounts a <div>, hands it
  * to `createStage`, and calls `dispose()` on unmount, so a scrolled-away transcript card frees its GPU context
  * instead of leaking one per message (Chromium caps live WebGL contexts at ~16).
  *
@@ -18,6 +18,8 @@ import {
   Color,
   DirectionalLight,
   GridHelper,
+  LoopOnce,
+  LoopRepeat,
   type Material,
   type Mesh,
   type Object3D,
@@ -41,15 +43,23 @@ export interface ModelStats {
 }
 
 export interface Stage {
-  /** `name` picks the loader by extension (default glTF/GLB). */
-  load: (bytes: ArrayBuffer, name?: string) => Promise<ModelStats>
+  /** `name` picks the loader by extension (default glTF/GLB); `siblings`: an OBJ's .mtl and textures as data URLs. */
+  load: (bytes: ArrayBuffer, name?: string, siblings?: Readonly<Record<string, string>>) => Promise<ModelStats>
   setAutoRotate: (on: boolean) => void
   setWireframe: (on: boolean) => void
+  setGrid: (on: boolean) => void
   resetView: () => void
-  /** Switch to a clip by index; it loops. */
+  /** Switch to a clip by index. */
   playClip: (index: number) => void
-  /** Pause or resume the current clip (keeps its pose while paused). */
+  /** Pause or resume the current clip (keeps its pose while paused; a finished play-once clip restarts). */
   setPlaying: (on: boolean) => void
+  /** Loop the clip (default) or play it once and hold the last pose. */
+  setLoop: (on: boolean) => void
+  /** `fn` runs when a play-once clip reaches its end. */
+  onClipEnd: (fn: () => void) => void
+  /** `fn` runs when the GPU drops this viewer's WebGL context; after a loss the browser may refuse new contexts to
+   *  the whole window until the app restarts. */
+  onContextLost: (fn: () => void) => void
   dispose: () => void
 }
 
@@ -110,11 +120,16 @@ export function createStage(host: HTMLElement, background: string): Stage {
   let mixer: AnimationMixer | null = null
   let action: AnimationAction | null = null
   let playing = false
+  let loop = true
+  let clipEnded = () => {}
   const clock = new Clock()
   let dirty = true
   let home = { pos: camera.position.clone(), target: new Vector3() }
   let frame = 0
   let disposed = false
+  let contextLost = () => {}
+  // dispose() drops the context on purpose (forceContextLoss): only a loss before that is news.
+  renderer.domElement.addEventListener('webglcontextlost', () => !disposed && contextLost())
 
   const resize = () => {
     const w = Math.max(1, host.clientWidth)
@@ -218,8 +233,13 @@ export function createStage(host: HTMLElement, background: string): Stage {
     const next = mixer.clipAction(clips[index])
     if (next !== action) {
       action?.fadeOut(0.25)
+      next.setLoop(loop ? LoopRepeat : LoopOnce, Infinity)
+      next.clampWhenFinished = true
       next.reset().fadeIn(action ? 0.25 : 0).play()
       action = next
+    }
+    if (!loop && action.time >= action.getClip().duration) {
+      action.reset().play()
     }
     action.paused = false
     playing = true
@@ -228,8 +248,14 @@ export function createStage(host: HTMLElement, background: string): Stage {
   }
 
   return {
-    async load(bytes, name) {
-      const parsed = await parseModel(bytes, name)
+    async load(bytes, name, siblings) {
+      const parsed = await parseModel(bytes, name, siblings)
+      if (disposed) {
+        throw new Error('viewer closed')
+      }
+      // Link the shaders before the first draw, without blocking: a draw that waits on a slow link stalls Chromium's
+      // GPU process, and on macOS such a stall has timed out a GPU queue and frozen the whole screen.
+      await renderer.compileAsync(parsed.root, camera, scene)
       if (disposed) {
         throw new Error('viewer closed')
       }
@@ -239,6 +265,15 @@ export function createStage(host: HTMLElement, background: string): Stage {
       clips = parsed.clips
       if (clips.length) {
         mixer = new AnimationMixer(model)
+        // A play-once clip holds its last pose. Only the current clip ends playback: one fading out after a switch
+        // fires `finished` too.
+        mixer.addEventListener('finished', (e: { action?: unknown }) => {
+          if (e.action === action) {
+            playing = false
+            dirty = true
+            clipEnded()
+          }
+        })
         // Frame on the first clip's first pose: a rig's bind pose can differ from its animated stance.
         playClipAt(0)
         mixer.update(0)
@@ -273,6 +308,10 @@ export function createStage(host: HTMLElement, background: string): Stage {
       })
       dirty = true
     },
+    setGrid(on) {
+      grid.visible = on
+      dirty = true
+    },
     resetView() {
       camera.position.copy(home.pos)
       controls.target.copy(home.target)
@@ -284,10 +323,26 @@ export function createStage(host: HTMLElement, background: string): Stage {
       if (!action) {
         return
       }
+      if (on && !loop && action.time >= action.getClip().duration - 1e-3) {
+        action.reset().play()
+      }
       playing = on
       action.paused = !on
       clock.getDelta()
       dirty = true
+    },
+    setLoop(on) {
+      loop = on
+      if (action) {
+        action.setLoop(on ? LoopRepeat : LoopOnce, Infinity)
+        action.clampWhenFinished = true
+      }
+    },
+    onClipEnd(fn) {
+      clipEnded = fn
+    },
+    onContextLost(fn) {
+      contextLost = fn
     },
     dispose() {
       disposed = true

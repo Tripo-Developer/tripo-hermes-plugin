@@ -1,7 +1,7 @@
 {
   "name": "tripo",
   "label": "Tripo",
-  "description": "Backend for the Tripo Desktop cards: credit balance, recent generations, task progress and local model reads.",
+  "description": "Backend for the Tripo Desktop cards and gallery: credit balance, recent generations, task progress, follow-up prices, file saves and local model reads.",
   "icon": "Box",
   "version": "0.1.0",
   "tab": {

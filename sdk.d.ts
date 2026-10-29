@@ -7,6 +7,11 @@ export interface PluginRestOptions {
   body?: unknown
   timeoutMs?: number
 }
+export interface PluginOs {
+  revealPath: (path: string) => Promise<boolean>
+  /** Newer Desktops only: feature-detect. */
+  writeClipboard?: (text: string) => Promise<boolean>
+}
 export interface GatewayEvent {
   type: string
   payload?: unknown
@@ -31,6 +36,8 @@ export interface PluginContext {
   onDispose: (fn: () => void) => void
   onEvent: (type: string, listener: (event: GatewayEvent) => void) => () => void
   rest: <T>(path: string, opts?: PluginRestOptions) => Promise<T>
+  /** Absent on older Desktops. */
+  os?: PluginOs
 }
 export interface HermesPlugin {
   id: string
@@ -75,7 +82,10 @@ export const TRANSCRIPT_DIRECTIVE_AREA: string
 /** Only on Desktops with the tool-media renderer seam: read it through a namespace import. */
 export const TOOL_MEDIA_RENDERER_AREA: string | undefined
 export const host: {
+  /** Composer bus: `null` = the composer the user is typing in. */
+  composer?: { submit: (sessionId: null | string, text: string) => boolean }
   state?: { profile?: ReadableAtom<string>; connectionId?: ReadableAtom<null | string> }
+  openSession?: (storedSessionId: string, options?: { intent?: 'in-place' | 'stack' | 'tab' | 'window' }) => Promise<void>
   navigate: (path: string) => void
   notify: (input: { kind: 'error' | 'info' | 'success' | 'warning'; message: string }) => string
   openWorkspace?: (
@@ -93,3 +103,9 @@ export function Button(
   props: ComponentProps<'button'> & { size?: 'default' | 'icon' | 'sm'; variant?: 'default' | 'ghost' | 'outline' }
 ): ReactNode
 export function Codicon(props: { name: string; size?: number; spinning?: boolean; style?: CSSProperties }): ReactNode
+// Radix-backed menu primitives (components/ui/dropdown-menu), newer Desktops only: read them through a namespace import.
+export const DropdownMenu: undefined | ((props: { children?: ReactNode; onOpenChange?: (open: boolean) => void }) => ReactNode)
+export const DropdownMenuTrigger: undefined | ((props: { asChild?: boolean; children?: ReactNode }) => ReactNode)
+export const DropdownMenuContent: undefined | ((props: { align?: 'center' | 'end' | 'start'; children?: ReactNode; style?: CSSProperties }) => ReactNode)
+export const DropdownMenuItem: undefined | ((props: { children?: ReactNode; disabled?: boolean; onSelect?: (event: Event) => void; title?: string }) => ReactNode)
+export const DropdownMenuSeparator: undefined | (() => ReactNode)

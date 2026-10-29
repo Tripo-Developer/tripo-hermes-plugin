@@ -21,6 +21,33 @@ export const MAX_WATCHED = 8
 export const MAX_WATCH_MS = 60 * 60 * 1000
 export const MISSING_GRACE_MS = 60_000
 
+// Tripo reports a running task's progress but no stage, so its type names what it is doing.
+const STAGE_WORDS: Record<string, string> = {
+  text_to_model: 'modelling',
+  image_to_model: 'modelling',
+  multiview_to_model: 'modelling',
+  refine_model: 'refining',
+  texture_model: 'texturing',
+  convert_model: 'converting',
+  import_model: 'importing',
+  highpoly_to_lowpoly: 'reducing faces',
+  mesh_segmentation: 'splitting into parts',
+  mesh_completion: 'completing parts',
+  mesh_edit: 'editing',
+  animate_prerigcheck: 'checking the rig',
+  animate_rig: 'rigging',
+  animate_retarget: 'animating',
+  text_to_image: 'drawing',
+  generate_image: 'drawing',
+  generate_multiview_image: 'drawing views',
+  edit_multiview_image: 'editing views',
+  image_to_splat: 'making a splat',
+  smartsegment_image: 'segmenting'
+}
+
+/** "modelling" for a text_to_model task: the word after "Tripo 15% ·". */
+export const stageWord = (type: string) => STAGE_WORDS[type] ?? (type.replace(/_/g, ' ').trim() || 'working')
+
 const PREFIX = 'mcp__tripo__'
 const TASK_ID = /^[0-9a-f][0-9a-f-]{15,63}$/
 

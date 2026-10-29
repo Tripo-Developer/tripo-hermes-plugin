@@ -24,8 +24,13 @@ SOFTWARE.
 
 Parts of the Desktop viewer (src/stage.ts, src/parse-model.ts, src/status.ts,
 src/active.ts, src/views.tsx, src/task-card.tsx and their build in
-desktop/plugin.js) are adapted from the Meshy plugin in Hermes Official Plugins
-(https://github.com/NousResearch/hermes-official-plugins), under this license:
+desktop/plugin.js) and the Blender handoff
+(skills/tripo-3d/scripts/blender_handoff.py,
+skills/tripo-3d/references/blender.md,
+skills/tripo-3d/references/blender-animation-handoff.md and
+tests/test_blender_handoff.py) are adapted from the Meshy plugin in Hermes
+Official Plugins (https://github.com/NousResearch/hermes-official-plugins),
+under this license:
 
 MIT License
 

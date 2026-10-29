@@ -13,6 +13,9 @@ metadata:
 Recipes on top of the `tripo-3d` skill. Read that skill first: it covers finding the tools
 (`tool_search`, then `tool_call` with names like `mcp__tripo__tripo_text_to_3d`), approval
 prompts, `tripo_plan` before spending, waiting for tasks, credits and the full parameter reference.
+A request in words only still starts with a concept image (tripo-3d, Procedure step 1): the
+generation parameters below work the same on `tripo_image_to_3d`, and `tripo_text_to_3d` is for a
+user who skips the image.
 Every arrow below is a billed task followed by waiting until it finishes; the `input` of each step
 is the previous step's task_id.
 
@@ -25,8 +28,9 @@ call `tripo_download` with `output_dir` set to the absolute path of the project'
 
 Set `model: "P2"` explicitly for game and real-time topology (image and multiview tools never pick
 it on their own); P1 only when the user asks for lower cost; v3.1 for film, render or print.
-Confirm the model, texture options and estimated cost with `tripo_plan`; re-confirm any paid model
-change.
+Confirm the model, texture options and estimated cost with `tripo_plan`, offering a model choice
+with `clarify`, one option per model with its credits, the pick above first (tripo-3d, Procedure
+step 1); re-confirm any paid model change.
 
 | target | generation call | export |
 |---|---|---|
