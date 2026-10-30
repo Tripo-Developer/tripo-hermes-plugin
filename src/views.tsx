@@ -946,7 +946,7 @@ export function Gallery({
               </Button>
             </div>
           )}
-          <div>Save to keep results: Tripo's download links expire in about 5 minutes; saved files stay.</div>
+          <div>Save to keep results: Tripo's download links expire after about 2 hours; saved files stay.</div>
         </div>
       </aside>
       <section style={V.main}>

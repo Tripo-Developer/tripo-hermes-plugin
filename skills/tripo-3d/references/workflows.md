@@ -26,7 +26,8 @@ arrow is a task followed by waiting until it finishes; the
 - **Animated character**: a T-pose source first (prompt for "T-pose, standing straight", or
   `tripo_generate_image` `{input: <character image>, template: "t_pose"}`) →
   `tripo_image_to_3d` / `tripo_text_to_3d` → `tripo_rig_check` (free; not riggable → stop) →
-  `tripo_rig` on the ORIGINAL model task with `rig_type` from the check → `tripo_animate` with the
+  `tripo_rig` on the ORIGINAL model task with `model: "v3.0"` (`"v2.5"` for an animal) and `rig_type` from the check →
+  `tripo_animate` with the
   preset family the `tripo_rig` result names, `animate_in_place: true` when game code drives
   movement. To play it, make it a game character or hand it to an engine with a controller:
   Game Studio in the `tripo-game-asset` skill.
@@ -75,7 +76,7 @@ whole batch. `tripo_task_list` checks up to 100 task ids in one call. Report the
 1. `tripo_plan` `{goal: "rigged knight for Unity from the user's T-pose image, with walk and idle", steps: [image_to_3d, rig_check, rig, animate, download]}` → confirm with `clarify`.
 2. `tripo_image_to_3d` `{input: "/Users/me/knight-tpose.png", model: "P2", face_limit: 20000, pbr: false}` → wait.
 3. `tripo_rig_check` `{input: <generation task>}` → wait; read `riggable` and `rig_type`.
-4. `tripo_rig` `{input: <generation task>, rig_type: "biped", spec: "unity", out_format: "fbx"}` → wait.
+4. `tripo_rig` `{input: <generation task>, model: "v3.0", rig_type: "biped", spec: "unity", out_format: "fbx"}` → wait.
 5. `tripo_animate` `{task_id: <rig task>, animations: ["preset:walk", "preset:idle"], out_format: "fbx", animate_in_place: true}` → wait.
 6. `tripo_download` `{task_id: <animate task>, output_dir: "<project>/Assets/Art/Knight"}`.
 7. `tripo_usage` `{task_ids: [<all four task ids>]}` → report the total and the breakdown.

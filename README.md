@@ -195,7 +195,7 @@ you get, rendered with stock three.js:
   the same menus, its task ID with Copy ID, and *Made from*: the prompt, source image or parent task,
   model, settings and credits, plus Open chat back to the chat that made it (for tasks made in this
   profile's Desktop chats). The list ends with how much the plugin has saved and Show folder. Tripo's
-  download links expire after about 5 minutes, so save what you want to keep.
+  download links expire after about 2 hours, so save what you want to keep.
 - **Credit chip** in the status bar, refreshed after every Tripo tool call; while a Tripo task runs
   it shows the task's progress instead.
 - On Desktop builds with plugin media renderers, a model file a Tripo tool saved and the reply

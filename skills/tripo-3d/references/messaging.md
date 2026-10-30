@@ -25,7 +25,7 @@ The `.png` goes out as a photo and the model as a file attachment. `cache/images
 gateway's media delivery folders, so this works in strict media mode too; it is a cache, so
 download right before you reply (`tripo_download` works again any time after the task succeeded).
 Never `![preview](<url>)`: on a streaming gateway the image is dropped and the raw markdown stays in
-the message. Never paste `output_urls` either: they expire in about 5 minutes.
+the message. Never paste `output_urls` either: they expire after about 2 hours.
 
 Chat apps cap attachments: Telegram bots can send files up to 50 MB, Discord about 10 MB on servers
 without boosts. Check the size first (`ls -l "<model_file>"`). When the model is larger, send only

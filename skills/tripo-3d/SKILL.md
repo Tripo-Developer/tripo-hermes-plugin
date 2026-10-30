@@ -114,7 +114,10 @@ first paid call.
 ## Procedure
 
 1. **Plan, then confirm.** Before the first call of any workflow that creates tasks, call
-   `tripo_plan` with every intended step (tool, purpose, key params). It is read-only and free.
+   `tripo_plan` with every intended step (tool, purpose, key params; for a 3D generation step
+   also its options as `generation`, including the exact `prompt` for text-to-3D). It is
+   read-only and free, and returns each generation step's resolved `model` and, for v3.1/P2,
+   its list price as `cost_estimate`.
    - A model asked for in words only (no image, task id or model file) starts with a concept
      image. Plan the image step, then ask with `clarify`: three image models first and, as the
      last choice, skipping the image for 3D straight from text with the model [Models](#models)
@@ -150,7 +153,7 @@ first paid call.
 3. **Submit once.** Every create returns `{task_id, status: "queued", next, notes}` immediately.
    Relay `notes`: they say which model was chosen automatically and which parameters were removed
    or adjusted. When unsure about a generation request, run it with `dry_run: true` first (no task,
-   no credits) and read `payload` and `notes`. Keep every task_id for the final credit report.
+   no credits) and read `model`, `cost_estimate`, `payload` and `notes`. Keep every task_id for the final credit report.
    PBR is opt-in: send `pbr: false` on every generation and `tripo_texture` call unless the user
    explicitly asks for PBR (for example "with PBR" or "PBR materials"); only then send
    `pbr: true`, which also forces `texture: true`. PBR can still be added later: when the user asks
@@ -207,7 +210,7 @@ offers; the plan still names it and its credits for the user's yes.
 When `model` is omitted, the server picks one and says why in
 `notes`: P2 for game, real-time, editable, low-poly or quad requests and for a face budget P2
 supports (48–50000 triangles, 48–25000 quads); v3.1 for dense geometry, v3-only options
-(`geometry_quality`, `smart_low_poly`, `generate_parts`), budgets above P2's range and anything
+(`geometry_quality`, `smart_low_poly`, `generate_parts`), budgets outside P2's range and anything
 unspecified. Image and multiview tools have no prompt to read, so set `model: "P2"` yourself when
 the user's goal is a game or real-time asset. P2 is the default P-series model; P1 only when the
 user names it or picks it as the lower-cost option;
@@ -219,8 +222,8 @@ model: `seedream_v4` first for text, `seedream_v5` first for editing. Details an
 
 ## Delivery by platform
 
-Always state the task_id, the format and each saved path. URLs from `output_urls` expire in about
-5 minutes: never paste them as the result.
+Always state the task_id, the format and each saved path. URLs from `output_urls` expire after about
+2 hours: never paste them as the result.
 
 - **Hermes Desktop:** a model goes in an interactive 3D card, a paragraph that is only
   `::tripo-model{task="<task_id>"}` right after the create (step 4: it shows the progress and loads
@@ -250,6 +253,8 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
 ## Pitfalls
 
 - Rig the ORIGINAL model task, not the `tripo_rig_check` task. Not riggable → stop before spending.
+- Pass `tripo_rig` `model` by body type, `"v3.0"` for a biped and `"v2.5"` for an animal: the API's
+  own default, `v1.0-20240301`, rigs bipeds only and takes only `preset:biped:*` clips.
 - `tripo_animate` presets follow the rig model named in the `tripo_rig` result: `preset:walk`
   style for v3.0 and v2.5 biped rigs, only the body-type clip for creatures (avian and others
   have none), `preset:biped:*` only for v1.0.

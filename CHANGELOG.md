@@ -64,7 +64,7 @@ First version.
 - The Tripo 3D gallery: images as well as models, a prompt search, All / Images / Models filters,
   the task ID with Copy ID, Made from (prompt, source image or parent task, model, settings,
   credits) with Open chat back to the chat that made the task, how much the plugin has saved with
-  Show folder, and a note that Tripo's download links expire in about 5 minutes.
+  Show folder, and a note that Tripo's download links expire after about 2 hours.
 - Backend (`dashboard/plugin_api.py`): `/status` (key, balance and settings), `/models` (finished
   models and images, with the saved copies), `/task` (one card's task, with the credits it used and
   `view_task`, a format-only conversion's source), `/active` (running tasks' progress), `/file`
@@ -79,3 +79,15 @@ First version.
   local Blender 4.2 or newer writes a new `.blend` plus GLB or FBX with packed textures, fewer
   triangles only with a budget the user gives, optional LODs and smaller textures, reopens each file
   in a fresh Blender to check it, and never touches the download or an open scene. No Tripo credits.
+- Prices are the official list prices (developers.tripo3d.ai/pricing, checked
+  2026-10-30): `chat_image_2.5_sunburst` costs 10 like the other chat_image models,
+  `quality` high/xhigh/max costs 20–50, and convert's 10-credit tier names its options.
+  `tripo_plan` and dry_run give a list price only for v3.1/P2 generation steps.
+- Tool reference synced with tripo-cli 0.9.0: v2.5 limits; `generate_parts` is
+  rejected together with `smart_low_poly`; segment's v2-only options; `quality` and
+  `background` scope and per-model image `size`; generation add-ons other than texture
+  quality apply to v3.1 only; standalone smart UV costs 20; P1 strips `quad`.
+- `export_uv` is not limited to the P series (official API docs).
+- Rigging passes `model` explicitly by body type, `"v3.0"` for bipeds and `"v2.5"` (the
+  official animal rig) for animals (skill, workflows and the dashboard's Rig it prompt): the official API default is still `v1.0-20240301`,
+  which rigs bipeds only.

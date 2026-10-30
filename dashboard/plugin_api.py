@@ -605,7 +605,7 @@ _ACTIONS = (
      'check whether it can be rigged with tripo_rig_check (input "{task}", free) and tell me the result.'),
     ("rig", "Rig it", 25, "25 credits", False, _MODELS,
      'rig it with tripo_rig (input "{task}", 25 credits). Run tripo_rig_check (free) first and pass the rig_type it '
-     "reports; if it is not riggable, stop and tell me. For a biped, ask me whose bone names to use (spec): unity "
+     "reports, with model v3.0 for a biped or v2.5 for an animal; if it is not riggable, stop and tell me. For a biped, ask me whose bone names to use (spec): unity "
      "(Unity Humanoid), unreal (UE Mannequin), mixamo, vrm or tripo."),
     ("segment", "Split into parts", 40, "40 credits", False, _MODELS,
      'split it into parts with tripo_segment (input "{task}", model v1.0, 40 credits).'),

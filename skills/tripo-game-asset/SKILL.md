@@ -42,7 +42,7 @@ step 1); re-confirm any paid model change.
 
 Two budget choices the defaults do not make for you:
 
-- **Quads at low poly**: P1 rejects `quad`; use `model: "P2", quad: true` (48–25000 quads, output
+- **Quads at low poly**: P1 does not support `quad` (the tool strips it); use `model: "P2", quad: true` (48–25000 quads, output
   is FBX) or v3.1 with `smart_low_poly: true, quad: true` (`face_limit` 500–10000).
 - **v3.1 quality under a face cap**: set `model: "v3.1"` explicitly; a face budget alone in P2's
   range routes to P2.
@@ -86,12 +86,12 @@ upper bound.
 3. `tripo_rig_check` `{input: <model task>}`: free. It gates the chain: not riggable → stop before
    spending on rigging. Read the recommended `rig_type` (`biped`, `quadruped`, `hexapod`,
    `octopod`, `avian`, `serpentine`, `aquatic`).
-4. `tripo_rig` `{input: <model task>, rig_type: <from the check>, spec: "unity", out_format: "fbx"}`:
+4. `tripo_rig` `{input: <model task>, model: "v3.0", rig_type: <from the check>, spec: "unity", out_format: "fbx"}`:
    rig the ORIGINAL model task, not the check task. `spec` is for bipeds only (drop it for
    creatures) and names the bones: `unity` (Unity Humanoid), `unreal` (UE Mannequin), `mixamo`,
    `actorcore`, `vrm` or the default `tripo`.
-   Leave `model` unset: bipeds get the v3.0 rig, the six creature types the v2.5 rig, and the
-   result names the preset family to use next. Ask for `model: "v1.0"` up front only when the user
+   Pass `model: "v3.0"` for a biped and `model: "v2.5"` for an animal: the API's own default,
+   v1.0, rigs bipeds only. The result names the preset family to use next. Ask for `model: "v1.0"` up front only when the user
    wants dances, greetings or sports clips.
 5. `tripo_animate` `{task_id: <rig task>, animations: ["preset:walk", "preset:idle"], out_format: "fbx", animate_in_place: true}`:
    at most five clips, billed per clip. v3.0 and v2.5 biped rigs take `preset:idle`
@@ -112,7 +112,8 @@ roam with), try it, turn it into a small game or put it in their engine. The 3D 
 playable, Playable web prototype, Export to a game engine and Add clips messages land here.
 
 1. **Make it playable** (25–75 credits). `tripo_rig_check` (free; not riggable → stop) →
-   `tripo_rig` with the reported `rig_type` (25 credits; for a biped, `spec: "unity"` or
+   `tripo_rig` with the reported `rig_type` and `model: "v3.0"` for a biped or `"v2.5"` for an animal
+   (25 credits; for a biped, `spec: "unity"` or
    `"unreal"` when the user names that engine) → one `tripo_animate` call with every clip and
    `animate_in_place: true` (10 credits per clip, at most five). Ask the clips with `clarify`,
    each choice with its total:
@@ -143,9 +144,9 @@ button; in the CLI the folder, the serve command and the link; in a chat app the
 the zipped folder as a `MEDIA:` attachment when it fits the upload caps of the tripo-3d skill's
 chat-app reference.
 
-Asked what Tripo brings to games, name what this plugin does: a rigged, animated character from
+Asked what Tripo brings to games, name what this plugin does: a rigged character from
 one model in minutes, for humanoids and six creature types (quadruped, hexapod, octopod, avian,
-serpentine, aquatic); bone names for Unity Humanoid, UE Mannequin, Mixamo, ActorCore or VRM;
+serpentine, aquatic), animated with preset clips for all but avian; bone names for Unity Humanoid, UE Mannequin, Mixamo, ActorCore or VRM;
 playing it right in the Desktop card, or as a web game, without an engine; remeshing to a triangle
 or quad budget with the textures baked on, and LODs from one source; parts split for modular kits;
 resizing to metres on export (`scale_factor`).
