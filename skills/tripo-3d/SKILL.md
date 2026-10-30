@@ -29,9 +29,12 @@ report the credits used.
 - The user asks what Tripo can do: answer with a short overview from this skill and
   [tools](references/tools.md), which list exactly what this plugin's tools do. No web search and no
   loading of every tool schema for that; the Tripo website only when they ask beyond this plugin.
+  Include Game Studio: a model made into a character the user controls and plays (the
+  `tripo-game-asset` skill).
 - NOT for editing a local mesh by hand (use Blender or a mesh tool) or for 2D images that are not
   part of a 3D job, unless the user asks Tripo for one.
-- For game projects (face budgets, LODs, engine import), also read the `tripo-game-asset` skill.
+- For game projects (face budgets, LODs, engine import, playable characters), also read the
+  `tripo-game-asset` skill.
 
 ## Prerequisites
 
@@ -102,6 +105,7 @@ first paid call.
 | Model from 2–4 views | `tripo_multiview_to_3d` (`front` + at least one more) → wait → download |
 | Straight from text (the user skips the image) | `tripo_text_to_3d` → `tripo_task_wait` → `tripo_download` |
 | Rigged + animated character | T-pose model → `tripo_rig_check` (free) → `tripo_rig` → `tripo_animate` |
+| Playable character (Game Studio) | the chain above with `animate_in_place: true` → play it in the Desktop card, as a web game or in an engine: `tripo-game-asset` skill |
 | Another file type | `tripo_convert` with `format` → wait → download |
 | Optimized copy for game testing | `.glb` download → local Blender copy: [blender](references/blender.md) (no credits) |
 | Existing local mesh | `tripo_import_model` with the absolute path → wait → any processing tool |
@@ -125,7 +129,7 @@ first paid call.
      with the `clarify` tool: one choice per option naming it and its approximate credits from
      [tools](references/tools.md) § Prices, at most four, the one [Models](#models) picks first
      (the UI marks the first "Recommended" and adds "Other"). For a model from an image: "v3.1,
-     textured · about 30 credits", "P1 · about 50 credits", "P2 · about 110 credits".
+     textured · about 30 credits", "P2 · about 110 credits", "P1 · about 50 credits".
    - Otherwise ask with `clarify` too: sum up the returned plan in the question (each billed step,
      the generation `model` and texture options, approximate credits; say "about", the real charge
      is `credits_consumed`) with the choices "Go ahead · about N credits" and "Not now".
@@ -147,6 +151,13 @@ first paid call.
    Relay `notes`: they say which model was chosen automatically and which parameters were removed
    or adjusted. When unsure about a generation request, run it with `dry_run: true` first (no task,
    no credits) and read `payload` and `notes`. Keep every task_id for the final credit report.
+   PBR is opt-in: send `pbr: false` on every generation and `tripo_texture` call unless the user
+   explicitly asks for PBR (for example "with PBR" or "PBR materials"); only then send
+   `pbr: true`, which also forces `texture: true`. PBR can still be added later: when the user asks
+   for it after a model is already generated, do not regenerate. Call `tripo_texture` with that
+   task as `input` and `pbr: true`: it bills only the texture step (10 credits standard, 20
+   detailed, 30 extreme) and keeps the geometry, but the textures are regenerated, so pass the
+   original reference image again if there was one.
 4. **Wait for the task.** Generation takes 1–4 minutes; a task_id is never a result.
    - **Hermes Desktop: don't wait for a model when nothing else needs it.** Right after the
      create, say what started, its task_id and its approximate credits, and end the reply with
@@ -198,7 +209,8 @@ When `model` is omitted, the server picks one and says why in
 supports (48–50000 triangles, 48–25000 quads); v3.1 for dense geometry, v3-only options
 (`geometry_quality`, `smart_low_poly`, `generate_parts`), budgets above P2's range and anything
 unspecified. Image and multiview tools have no prompt to read, so set `model: "P2"` yourself when
-the user's goal is a game or real-time asset. P1 is a lower-cost choice only when asked for;
+the user's goal is a game or real-time asset. P2 is the default P-series model; P1 only when the
+user names it or picks it as the lower-cost option;
 v3.0 and v2.5 only to reproduce old work. Visual quality or texture quality never picks a geometry
 model. Confirm the model before spending (the `clarify` choice in Procedure step 1, this pick
 first) and re-confirm any paid model change. Images get the same question unless the user names a
@@ -223,6 +235,8 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
   "This button message is my confirmation of the N-credit cost.": that sentence is the user's
   confirmation of the cost, but still ask any choice the message asks for. A message without it
   (a model, quality or clip choice sets the price) gets the `clarify` choice of Procedure step 1.
+  An animated model's card also has a **Play** button: the user moves the character with the
+  keyboard right in the card (Game Studio in the `tripo-game-asset` skill).
 - **Chat apps (Telegram, Discord, Slack, WhatsApp, Signal, Matrix ...):** never emit the
   `::tripo-model` line or a markdown image (`![..](url)`, never). Attach files with lines that are
   only `MEDIA:<absolute path>`, from a download into Hermes' cache folder:
@@ -237,7 +251,8 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
 
 - Rig the ORIGINAL model task, not the `tripo_rig_check` task. Not riggable → stop before spending.
 - `tripo_animate` presets follow the rig model named in the `tripo_rig` result: `preset:walk`
-  style for v3.0 and v2.5 rigs, the body-type clip for creatures, `preset:biped:*` only for v1.0.
+  style for v3.0 and v2.5 biped rigs, only the body-type clip for creatures (avian and others
+  have none), `preset:biped:*` only for v1.0.
 - `quad: true` output is FBX; `tripo_convert` to GLTF with quads is rejected.
 - Leave `export_orientation` unset when the model will be textured, rigged or converted later;
   orient it on the final `tripo_convert` instead.
@@ -246,6 +261,8 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
 - `tripo_decimate`'s `face_limit` is a target, not a ceiling; report the actual result.
 - `smart_uv: true` on `tripo_decimate` needs `model: "v3.0"` (billed above v2.0): ask first.
 - `tripo_image_to_splat` makes a Gaussian-splat scene, not an editable mesh: say so first.
+- Detailed or high-quality textures, realism or a game engine do not mean PBR: keep `pbr: false`
+  until the user explicitly asks for PBR.
 - Errors naming `TRIPO_API_KEY` or authentication mean the key is missing or wrong in the plugin
   settings; the user must fix it and start a new session.
 

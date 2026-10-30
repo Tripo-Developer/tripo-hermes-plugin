@@ -15,8 +15,8 @@ arrow is a task followed by waiting until it finishes; the
 - **Game prop, mobile / WebGL / many instances**: explicit `model: "P2"` and a confirmed
   `face_limit` → `tripo_convert` `{format: "FBX", texture_size: 2048}` for Unity or Unreal;
   Three.js and Godot take the GLB as is. More in the `tripo-game-asset` skill.
-- **Game hero asset, PC / console**: explicit `model: "P2"`, `pbr: true`,
-  `texture_quality: "detailed"` → FBX only if the engine needs it.
+- **Game hero asset, PC / console**: explicit `model: "P2"`,
+  `texture_quality: "detailed"`, `pbr: false` → FBX only if the engine needs it.
 - **Film, render, close-ups**: `model: "v3.1"` with `geometry_quality: "detailed"` and
   `texture_quality: "detailed"` (both cost extra).
 - **3D print or figurine**: `texture: false, pbr: false` → `tripo_convert`
@@ -28,7 +28,8 @@ arrow is a task followed by waiting until it finishes; the
   `tripo_image_to_3d` / `tripo_text_to_3d` → `tripo_rig_check` (free; not riggable → stop) →
   `tripo_rig` on the ORIGINAL model task with `rig_type` from the check → `tripo_animate` with the
   preset family the `tripo_rig` result names, `animate_in_place: true` when game code drives
-  movement.
+  movement. To play it, make it a game character or hand it to an engine with a controller:
+  Game Studio in the `tripo-game-asset` skill.
 - **Quads or a face cap**: `quad: true` (P2 or v3.1) is delivered as FBX and can never export
   GLTF. P2 holds 48–25000 quads; v3.1 with `smart_low_poly: true, quad: true` 500–10000. Set
   `model: "v3.1"` explicitly when the user wants v3.1 quality under a budget.
@@ -72,7 +73,7 @@ whole batch. `tripo_task_list` checks up to 100 task ids in one call. Report the
 ## Example: rigged character for Unity
 
 1. `tripo_plan` `{goal: "rigged knight for Unity from the user's T-pose image, with walk and idle", steps: [image_to_3d, rig_check, rig, animate, download]}` → confirm with `clarify`.
-2. `tripo_image_to_3d` `{input: "/Users/me/knight-tpose.png", model: "P2", face_limit: 20000}` → wait.
+2. `tripo_image_to_3d` `{input: "/Users/me/knight-tpose.png", model: "P2", face_limit: 20000, pbr: false}` → wait.
 3. `tripo_rig_check` `{input: <generation task>}` → wait; read `riggable` and `rig_type`.
 4. `tripo_rig` `{input: <generation task>, rig_type: "biped", spec: "unity", out_format: "fbx"}` → wait.
 5. `tripo_animate` `{task_id: <rig task>, animations: ["preset:walk", "preset:idle"], out_format: "fbx", animate_in_place: true}` → wait.

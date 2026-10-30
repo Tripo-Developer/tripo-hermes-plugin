@@ -133,7 +133,7 @@
           },
           "pbr": {
             "type": "boolean",
-            "description": "PBR materials (implies texture)"
+            "description": "PBR materials (implies texture); default false — set true only when the user explicitly asks for PBR"
           },
           "texture_quality": {
             "type": "string",
@@ -340,7 +340,7 @@
           },
           "pbr": {
             "type": "boolean",
-            "description": "PBR materials (implies texture)"
+            "description": "PBR materials (implies texture); default false — set true only when the user explicitly asks for PBR"
           },
           "texture_quality": {
             "type": "string",
@@ -511,7 +511,7 @@
           },
           "pbr": {
             "type": "boolean",
-            "description": "PBR materials (implies texture)"
+            "description": "PBR materials (implies texture); default false — set true only when the user explicitly asks for PBR"
           },
           "texture_quality": {
             "type": "string",
@@ -940,7 +940,8 @@
             "description": "fast = quickest, same credits as standard, needs model v3.5 (picked automatically when model is omitted)"
           },
           "pbr": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "PBR materials; default false — set true only when the user explicitly asks for PBR"
           },
           "texture_alignment": {
             "type": "string",

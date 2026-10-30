@@ -133,6 +133,17 @@ def test_paid_choices_are_asked_with_clarify_and_the_listed_credits():
         assert row and row.group(1) == credits, model
 
 
+def test_p2_is_the_default_p_series_model_and_p1_comes_only_when_the_user_names_or_picks_it():
+    examples = re.findall(r'"(v3\.1|P1|P2)[^"]*· about \d+ credits"', _flat(MAIN_SKILL))
+    assert examples == ["v3.1", "P2", "P1"], examples
+    models = _flat(MAIN_SKILL.split("\n## Models\n", 1)[1].split("\n## ", 1)[0])
+    assert "P2 is the default P-series model; P1 only when the user names it or picks it" in models
+    assert "| **P1** | lower cost, only when the user names it or picks it |" in SKILL_DOCS["skills/tripo-3d/references/tools.md"]
+    assert "(v3.1 30, P2 110, P1 50)" in SKILL_DOCS["skills/tripo-3d/references/messaging.md"]
+    assert "P1 only when the user names it or picks it" in _flat(SKILL_DOCS["skills/tripo-game-asset/SKILL.md"])
+    assert "Ask offers v3.1, P2 and P1" in SCHEMA["default_model"]["description"]
+
+
 def test_desktop_shows_images_in_the_chat_and_models_in_the_card():
     desktop = _flat(MAIN_SKILL.split("- **Hermes Desktop:**", 1)[1].split("\n- **", 1)[0])
     assert "::tripo-model{path=" in desktop

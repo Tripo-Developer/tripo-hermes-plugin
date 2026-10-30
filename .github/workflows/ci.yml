@@ -27,8 +27,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: desktop/plugin.js is the committed build of src/
-        run: git diff --exit-code desktop/plugin.js
+      - name: desktop/plugin.js and the web template's play.js are the committed build of src/
+        run: git diff --exit-code desktop/plugin.js skills/tripo-game-asset/assets/playable-web/play.js
 
   hermes:
     strategy:

@@ -56,7 +56,7 @@ tools skip the prompt).
 |---|---|---|
 | **P2** | game, real-time, editable or quad assets | `face_limit` 48–50000 tri / 48–25000 quad; `quad`; no `smart_low_poly`, `generate_parts`, `geometry_quality`; costs more than v3.1 and P1 |
 | **v3.1** | dense geometry, film, render, print, v3-only options | full parameter set |
-| **P1** | lower cost when the user asks for it | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality`; adds `export_uv` |
+| **P1** | lower cost, only when the user names it or picks it | `face_limit` 50–20000; no `quad`, `smart_low_poly`, `generate_parts`, `geometry_quality`; adds `export_uv` |
 | v3.0, v2.5 | reproducing old work only | v2.5 has no `geometry_quality` |
 
 Website names map to these rows: H3.1 → `v3.1`, P1.0 → `P1`, P2.0 → `P2`. When `model` is omitted
@@ -71,7 +71,7 @@ For `tripo_text_to_3d`, `tripo_image_to_3d` and `tripo_multiview_to_3d`.
 |---|---|---|
 | `prompt`, `negative_prompt` | – | text tool only; ≤1024 / ≤255 chars |
 | `face_limit` | adaptive | upper bound on faces; P2 and P1 ranges above |
-| `texture`, `pbr` | `true`, `true` | `pbr: true` forces `texture: true`; both `false` = bare geometry, no texture credits |
+| `texture`, `pbr` | `true`, `false` | `pbr: true` only when the user explicitly asks for PBR; it forces `texture: true`; both `false` = bare geometry, no texture credits |
 | `texture_quality` | `standard` | `detailed` (HD), `extreme` (8K), `fast` (v3.5 textures only) |
 | `texture_version` | from `model` | `v3.5` newest (unlocks `delight`, `fast`), `v3.0` default, `v2.5` |
 | `delight` | `true` | v3.5 textures: remove baked-in lighting from the reference |
@@ -96,7 +96,7 @@ finished `tripo_image_to_multiview` / `tripo_edit_multiview` task.
 
 | tool | arguments and constraints |
 |---|---|
-| `tripo_texture` | `texture_quality`, `pbr`, `texture_seed`, `texture_alignment`, `bake`, `delight`, `part_names` (segmented models), `compress`; `model` `v3.0` (default), `v3.5` (newest), `v2.5`. Guidance: one of `prompt` (with optional `style_image`), `image`, or `images` (front, left, back, right) |
+| `tripo_texture` | `texture_quality`, `pbr` (`false` unless the user explicitly asks for PBR), `texture_seed`, `texture_alignment`, `bake`, `delight`, `part_names` (segmented models), `compress`; `model` `v3.0` (default), `v3.5` (newest), `v2.5`. Guidance: one of `prompt` (with optional `style_image`), `image`, or `images` (front, left, back, right) |
 | `tripo_convert` | `format` GLTF/USDZ/FBX/OBJ/STL/3MF (3MF = single-colour print). Mesh: `face_limit`, `quad`, `force_symmetry`, `flatten_bottom` + `flatten_bottom_threshold`. Texture: `texture_size` (4096), `texture_format`, `bake`, `pack_uv`, `export_vertex_colors`. Export: `pivot_to_center_bottom`, `scale_factor`, `auto_size`, `with_animation`, `animate_in_place`, `part_names`, `export_orientation`, `fbx_preset` blender/3dsmax/mixamo. Quads cannot export GLTF |
 | `tripo_import_model` | an existing model (local path, URL or file_token) becomes a task with a preview |
 | `tripo_rig_check` | free; result says `riggable` and the recommended `rig_type` |
@@ -109,11 +109,11 @@ finished `tripo_image_to_multiview` / `tripo_edit_multiview` task.
 | `tripo_mesh_edit` | P2 pipeline; `bbox` `[[x1,y1,z1],[x2,y2,z2]]` around the region to redo; `face_limit` (≥100); `ref_image`; `compress`. The rest of the mesh is kept |
 | `tripo_smart_segment` | `seg_type` `model` (GLB only) or `image`; `granularity` coarse/medium/fine; `hint` naming the parts; `transform` |
 
-Animation presets follow the rig model the `tripo_rig` result names. v3.0 and v2.5 rigs:
+Animation presets follow the rig model the `tripo_rig` result names. v3.0 and v2.5 biped rigs:
 `preset:idle` `preset:walk` `preset:run` `preset:jump` `preset:fall` `preset:turn`
-`preset:climb` `preset:dive` `preset:slash` `preset:shoot` `preset:hurt`, plus the body-type
-clips `preset:quadruped:walk` `preset:hexapod:walk` `preset:octopod:walk`
-`preset:serpentine:march` `preset:aquatic:march` (use the one matching the creature). v1.0 rigs
+`preset:climb` `preset:dive` `preset:slash` `preset:shoot` `preset:hurt`. Creature rigs take only
+their body-type clip: `preset:quadruped:walk` `preset:hexapod:walk` `preset:octopod:walk`
+`preset:serpentine:march` `preset:aquatic:march`; avian and others rigs have none. v1.0 rigs
 (humanoid only) take only the 90+ `preset:biped:*` clips: `idle` `walk` `run` `jump` `sit` `swim`,
 `dance_01`…`dance_06`, `greet_01`…, `wave_goodbye_01`, `clap`, `bow`, `box_01`…, `golf` and more.
 Ask for v1.0 up front when the user wants dances, greetings or sports clips.

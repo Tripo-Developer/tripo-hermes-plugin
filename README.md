@@ -16,7 +16,7 @@ This is a portable [Agent Plugins v1](https://agent-plugins.org) package. One in
   uncertain task, report the credits used), because Hermes does not pass MCP server instructions
   to the model, plus scenario recipes and a tool reference.
 - A Hermes Desktop half (`desktop/plugin.js`, `dashboard/`): inline 3D cards with Next and
-  Download menus, a Tripo 3D gallery and a credit chip.
+  Download menus and a Play mode, a Tripo 3D gallery and a credit chip.
 
 ## Install
 
@@ -51,6 +51,28 @@ Hermes' MCP catalog)? That entry has the same name and replaces this plugin's se
 paths, downloads and the Desktop cards stop working, and its own `trust` applies instead of the
 plugin's `trust: untrusted` (without one, every tool runs without asking). Remove it with
 `hermes mcp remove tripo`, or keep it and skip this plugin.
+
+## Game Studio
+
+Turn a model into a character you control: ask "make this dragon a character I can play", or pick
+*Make it playable* in a 3D card's Next menu. The `tripo-game-asset` skill runs the free rig check,
+rigs the model (humanoids and six creature types; Unity Humanoid, UE Mannequin, Mixamo or VRM bone
+names on request) and adds game clips that stay in place, for 25–75 credits quoted before anything
+runs. Then:
+
+- **Play it in Hermes Desktop.** The animated model's card has a *Play* button, and the viewer a
+  Play mode: WASD or arrows move, Shift runs, Space jumps, J attacks, Esc exits. Moves the model has
+  no clip for are made up in code: an idle on a still frame, a faster walk for running, a jump arc
+  and a lunge.
+- **Playable web prototype** (free): a three.js arena with enemies, coins, stamina and a special
+  move, copied into a folder you name and served on `127.0.0.1` for your browser.
+- **Export to a game engine**: Godot takes the GLB as it is; Unity and Unreal get an FBX (5 credits,
+  10 with options). The skill writes a character controller for Godot and Unity; Unreal reuses its
+  Third Person template.
+
+Tripo animates a creature rig with one walk-style clip (avian and other rigs get none); for a full
+set on a dragon, the agent can offer a new model generated upright in a T-pose, which rigs as a
+humanoid.
 
 ## Spending credits: approval
 
@@ -155,12 +177,18 @@ you get, rendered with stock three.js:
   USDZ with text USD layers and 3MF, and stands Z-up files upright; a conversion that only changed
   the file format shows its source model.
 - **Next, Download and Open** in a finished card's header, beside the credits the task cost.
-  *Next* lists the follow-ups Tripo offers for that task with their credits (texture, lower the face
-  count, check or add a rig, split into parts, animate, regenerate; for an image, make a 3D model).
+  *Next* lists the follow-ups Tripo offers for that task with their credits: Texture it for an
+  untextured model or Retexture, Remesh to a triangle or quad budget, Resize, check or add a rig
+  (with engine bone names), split into parts, animate, regenerate; for an image, make a 3D model.
+  A Game Studio group follows: *Make it playable* on a model or rig, and on an animated model
+  *Playable web prototype*, *Export to a game engine* and *Add clips* ([Game Studio](#game-studio)).
   A pick sends a chat message, so the agent runs it behind the usual approval prompt; the menu
   itself never spends. *Download* saves a file Tripo made (the textured or untextured model, the preview)
   into the plugin's folder, free, and shows it; *Convert to …* sends a chat message like Next.
   *Open* shows the task in the gallery.
+- **Play mode** for an animated model: the card's *Play* button or the viewer's game-controller
+  button. Click the model, then move the character with the keyboard while the camera follows; the
+  keys act only while the viewer has focus, and Esc leaves Play mode.
 - **Tripo 3D gallery** (⌘K → "Tripo: recent generations", the credit chip, or a card's Open): your
   recent Tripo images and models next to the ones already on this machine, with a prompt search and
   All / Images / Models filters. The selected one opens in the viewer (an image as a picture) with
@@ -212,6 +240,10 @@ Tasks and account: `tripo_plan`, `tripo_task_status`, `tripo_task_wait`, `tripo_
 - In chat apps the skill uses Hermes' terminal tool: `hermes config path` to find the media folder,
   `ls -l` to check a file's size before attaching it, and a background `sleep … && echo` timer that
   wakes the chat when a job should be done.
+- The playable web prototype is made only when you ask for it: the agent copies the skill's
+  template into the folder you name and serves it with Python's `http.server` through the terminal
+  tool, bound to `127.0.0.1`, so only this machine can open it; the server stops with the session.
+  The page loads three.js 0.180.0 from cdn.jsdelivr.net.
 - The Desktop half's backend reads your balance and recent tasks from the same API with your key,
   and downloads a finished model from Tripo's result storage (no key sent) only when you open it.
   Desktop loads task previews straight from Tripo's short-lived result links.
@@ -241,6 +273,9 @@ node scripts/validate.mjs                                    # package rules, ze
 PYTHONPATH=/path/to/hermes-agent python -m pytest tests -q   # contracts against real Hermes code
 npm ci && npm run typecheck && npm test && npm run build     # Desktop half; commit desktop/plugin.js
 ```
+
+The build also writes `skills/tripo-game-asset/assets/playable-web/play.js` from `src/play.ts`, the
+character code the Desktop Play mode and the web prototype share; commit it with `desktop/plugin.js`.
 
 `docs/testing.md` covers local runs against an isolated `HERMES_HOME` and the acceptance scenarios.
 

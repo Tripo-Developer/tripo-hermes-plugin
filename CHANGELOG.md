@@ -23,6 +23,13 @@ First version.
   user wants it. Every confirmation is a `clarify` choice, and the pick runs the call right away, so
   Hermes' approval prompt follows instead of a second question in text. Asked what Tripo can do, the
   agent answers from the skill's tool list instead of searching the web.
+- PBR is opt-in: tripo-cli 0.9.0 leaves `pbr` off when it is omitted, and the skills send
+  `pbr: false` on every generation and `tripo_texture` call unless the user explicitly asks for PBR;
+  the PC/console hero recipe follows it. The tool snapshot carries the new `pbr` descriptions.
+- Adding PBR to a model that is already generated re-textures its task with `tripo_texture`
+  (`pbr: true`) instead of regenerating it, so only the texture step is billed.
+- Within the P series the default is P2: the model choice lists v3.1, P2, then P1, and P1 is used
+  only when the user names it or picks it as the lower-cost option.
 - Hermes Desktop half, following the Meshy plugin's flow: next steps from the card, a gallery with
   what made each task, and the chat it came from. A credit chip shows a running task's progress.
 - `::tripo-model` 3D cards: task progress with Tripo's stage (modelling, texturing, rigging…) beside
@@ -30,6 +37,21 @@ First version.
   with their credits), Download (the files Tripo made, saved free into the plugin's folder;
   conversions) and Open (the task in the gallery). Next and Convert send a chat message to the
   card's own chat, so the agent runs them behind the usual approval prompt; the menus never spend.
+- Next covers Meshy's follow-ups: Texture it for an untextured model and Retexture (a new style) for
+  a textured one; Remesh (was Lower the face count) to a game face budget in triangles or quads;
+  Resize (`tripo_convert` with a `scale_factor` for the size in metres); Rig it asks a biped's bone
+  names (Unity, Unreal, Mixamo, VRM or Tripo's). Some rows carry a one-line note.
+- Game Studio, in the `tripo-game-asset` skill and the Desktop half: Make it playable checks, rigs
+  and animates a model in place in one confirmed chain (25–75 credits); an animated model's card has
+  a Play button and the viewer a Play mode (WASD or arrows, Shift runs, Space jumps, J attacks, Esc
+  exits), with an idle, run, jump and attack made up in code when the model has no clip for them;
+  Playable web prototype copies a three.js arena (enemies, coins, stamina, a special move) from the
+  skill's assets into a folder the user names and serves it on `127.0.0.1`; Export to a game engine
+  writes a character controller for Godot or Unity and sets up Unreal's Third Person template; Add
+  clips animates the same rig again. The Play mode and the web template share `src/play.ts`, built
+  into the template's `play.js`.
+- The skills' animation presets match tripo-cli 0.9.0's rig result: a creature rig takes only its
+  body-type clip, and avian and other rigs none.
 - Viewer: GLB and FBX, plus OBJ (with the `.mtl` and textures beside it), STL, USDZ (text USD
   layers) and 3MF, with Z-up files stood upright; the file's size, a grid toggle, play once or loop
   for animations, and Show in folder (on a remote Hermes host, a notice with the path instead). An

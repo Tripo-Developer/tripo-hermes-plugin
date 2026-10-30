@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tripo Game Studio prototype</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #15171c;
+        color: #e8e8ea;
+        font: 13px/1.5 system-ui, sans-serif;
+      }
+      canvas {
+        display: block;
+        outline: none;
+      }
+      #hud {
+        position: fixed;
+        left: 12px;
+        top: 10px;
+        pointer-events: none;
+        text-shadow: 0 1px 2px #000;
+      }
+      #hud b {
+        font-size: 15px;
+      }
+      .bar {
+        width: 160px;
+        height: 6px;
+        margin: 4px 0;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.15);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #e5484d;
+      }
+      #stamina {
+        background: #3ddc97;
+      }
+      #message {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        font-size: 18px;
+        text-align: center;
+        white-space: pre-line;
+        pointer-events: none;
+        text-shadow: 0 1px 3px #000;
+      }
+    </style>
+    <!-- three.js comes from the jsDelivr CDN, pinned to the version the Tripo plugin is built and tested with. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="hud">
+      <b id="title">Tripo Game Studio</b>
+      <div class="bar"><i id="health"></i></div>
+      <div class="bar"><i id="stamina"></i></div>
+      <span id="score"></span><br />
+      <span id="controls"></span><br />
+      <span id="clips"></span>
+    </div>
+    <div id="message">Loading the character…</div>
+    <script type="module" src="game.js"></script>
+  </body>
+</html>

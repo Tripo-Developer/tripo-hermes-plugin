@@ -17,8 +17,8 @@ Routes:
                           URL: an absolute path inside the plugin's folder or the user's home, at most 128 MB
     POST /save            {task, field?}: put a finished task's model (or the named output) in the plugin's folder;
                           the link is read fresh from the API and every hop must stay on Tripo's result host
-    GET  /actions?task=   the card's Next menu: the follow-ups a finished task supports, their credits and the chat
-                          message each one sends
+    GET  /actions?task=   the card's Next menu: the follow-ups a finished task supports (Game Studio ones grouped), their
+                          credits, a short note and the chat message each one sends
     GET  /formats?task=   the card's Download menu: the files Tripo made for the task, and conversions (chat messages)
     POST /provenance      {task_id, tool, args, session_id}: the tool call that made a task, kept for this profile's
                           own chats
@@ -581,21 +581,32 @@ def save(body: dict):
 # route here spends credits. Credits are the list prices of skills/tripo-3d/references/tools.md § Prices; the chat-app
 # list in references/messaging.md § Next steps names the same steps (tests/test_plugin_api.py keeps them equal).
 _CONFIRM = "This button message is my confirmation of the {cost}-credit cost."
-_TO_3D = "First ask me the model with clarify, one choice per model with its credits: v3.1 textured 30, P1 50, P2 110."
+_TO_3D = "First ask me the model with clarify, one choice per model with its credits: v3.1 textured 30, P2 110, P1 50."
+_TIERS = "the texture quality with clarify, one choice per tier with its credits: standard 10, detailed 20, extreme 30."
+_STUDIO = "Follow the tripo-game-asset skill's Game Studio steps."
 _ACTIONS = (
     # id, label, credits (a choice: its cheapest option; None: the task's own credits), price as the docs write it,
     # whether a choice sets the price (asked with clarify, so no confirmation sentence), task types, message
     ("texture", "Texture it", 10, "10–30 credits", True, _MODELS,
-     'retexture it with tripo_texture (input "{task}"). First ask me the texture quality with clarify, one choice per '
-     "tier with its credits: standard 10, detailed 20, extreme 30."),
-    ("decimate", "Lower the face count", 30, "30 credits", False, _MODELS,
-     'lower its face count with tripo_decimate (input "{task}", model v2.0, 30 credits). Ask me the target face count '
-     "(500 to 20000 triangles) before calling."),
+     f'texture it with tripo_texture (input "{{task}}", pbr false unless I ask for PBR). Ask me for a style only if I '
+     f"haven't given one, and first ask me {_TIERS}"),
+    ("retexture", "Retexture", 10, "10–30 credits", True, _MODELS,
+     f'retexture it in a new style with tripo_texture (input "{{task}}", pbr false unless I ask for PBR). First ask me '
+     f"the style in words (or a style image) and {_TIERS}"),
+    ("decimate", "Remesh", 30, "30 credits", False, _MODELS,
+     'remesh it with tripo_decimate (input "{task}", model v2.0, 30 credits). Suggest a target for what it is (player '
+     "character about 15000 triangles, NPC 5000 to 15000, weapon about 3000, small prop about 1500; mobile about "
+     "half), then ask me the target (500 to 20000 triangles or 500 to 10000 quads) and triangles or quads."),
+    ("resize", "Resize", 10, "10 credits", False, _MODELS,
+     'resize it with tripo_convert (input "{task}", format "GLTF", 10 credits as a convert with options). Ask me '
+     "the size I want for its longest side in metres and pass that as scale_factor (a model Tripo generated "
+     "measures one unit on its longest side)."),
     ("rig_check", "Check rigging", 0, "free", False, _MODELS,
      'check whether it can be rigged with tripo_rig_check (input "{task}", free) and tell me the result.'),
     ("rig", "Rig it", 25, "25 credits", False, _MODELS,
      'rig it with tripo_rig (input "{task}", 25 credits). Run tripo_rig_check (free) first and pass the rig_type it '
-     "reports; if it is not riggable, stop and tell me."),
+     "reports; if it is not riggable, stop and tell me. For a biped, ask me whose bone names to use (spec): unity "
+     "(Unity Humanoid), unreal (UE Mannequin), mixamo, vrm or tripo."),
     ("segment", "Split into parts", 40, "40 credits", False, _MODELS,
      'split it into parts with tripo_segment (input "{task}", model v1.0, 40 credits).'),
     ("regenerate", "Regenerate", None, "the same credits again", False, ("text_to_model",),
@@ -608,7 +619,32 @@ _ACTIONS = (
      f'make a 3D model from this image with tripo_image_to_3d (input "{{task}}"). {_TO_3D}'),
     ("make3d", "Make a 3D model", 30, "30–110 credits", True, _SHEETS,
      f'make a 3D model from these views with tripo_multiview_to_3d (multiview_task_id "{{task}}"). {_TO_3D}'),
+    ("playable", "Make it playable", 25, "25–75 credits", True, _MODELS,
+     f'make it a playable game character. {_STUDIO} Run tripo_rig_check (input "{{task}}", free) first and stop if it '
+     "is not riggable. Then ask me with clarify which clips, each choice with its total (tripo_rig 25 plus 10 per "
+     "tripo_animate clip): a biped idle, walk, run, jump and slash 75, or idle and walk 45; a quadruped, hexapod, "
+     "octopod, serpentine or aquatic rig its one body-type clip 35; avian or others the rig alone 25."),
+    ("playable", "Make it playable", 10, "10–50 credits", True, ("animate_rig",),
+     f'make this rig a playable game character. {_STUDIO} Ask me with clarify which clips to animate with tripo_animate '
+     '(task_id "{task}", 10 credits per clip, at most 5), from what its rig type supports, each choice with its total.'),
+    ("prototype", "Playable web prototype", 0, "free", False, ("animate_retarget",),
+     f"build a playable web prototype from it (no Tripo credits). {_STUDIO} Ask me for the folder first."),
+    ("engine", "Export to a game engine", 0, "up to 10 credits", True, ("animate_retarget",),
+     f"put it in my game project with a character controller. {_STUDIO} First ask me the engine with clarify: Godot "
+     '(the GLB as it is, free), Unity or Unreal (tripo_convert input "{task}" to FBX, 5 credits, 10 with options).'),
+    ("more_clips", "Add clips", 10, "10 credits per clip", True, ("animate_retarget",),
+     'add clips with tripo_animate on its rig (task_id "{rig}", 10 credits per clip, at most 5). First ask me which '
+     "clips with clarify, from what the rig type supports, counting the clips this one has so they land in one file, "
+     "and quote the total."),
 )
+# Rows the card lists under a Game Studio heading, and the line the card shows under a row's label.
+_GAME_ACTIONS = frozenset({"playable", "prototype", "engine", "more_clips"})
+_NOTES = {"decimate": "Triangles or quads, textures baked on",
+          "rig": "Humanoids and 6 creature types · Unity, Unreal, Mixamo or VRM bones",
+          "segment": "Separate parts for modular kits",
+          "playable": "Rig and clips, then play it in this card",
+          "prototype": "A three.js game in your folder: move, attack, enemies",
+          "engine": "Godot, Unity or Unreal, with a character controller"}
 # The Download menu's conversions: each one is a new billed task, so its row sends a chat message too.
 _CONVERT_FORMATS = ("FBX", "OBJ", "USDZ", "STL", "3MF")
 _CONVERT_CREDITS = 5
@@ -632,14 +668,21 @@ def actions(task: str):
         balance = None
     what = " ".join((_prompt(row) or "").split())[:80]
     subject = f"Tripo task {task_id}" + (f' ("{what}")' if what else "")
+    request = row.get("input") if isinstance(row.get("input"), dict) else {}
+    untextured = request.get("texture") is False
+    rig = request.get("original_model_id")  # an animation's rig task
+    rig = rig if isinstance(rig, str) and _TASK_ID.fullmatch(rig) else None
     out = []
     for aid, label, credits, price, choice, kinds, message in _ACTIONS:
         cost = spent if aid == "regenerate" else credits
         if kind not in kinds or cost is None:
             continue  # never offer a step that cannot say what it spends
-        text = f"{subject}: {message.format(task=task_id, cost=cost)}"
+        if aid == ("retexture" if untextured else "texture") or (aid == "more_clips" and rig is None):
+            continue  # a white model gets Texture it, a textured one Retexture
+        text = f"{subject}: {message.format(task=task_id, cost=cost, rig=rig)}"
         out.append({"id": aid, "label": label, "cost": cost, "price": price, "choice": choice,
-                    "affordable": balance is None or cost <= balance,
+                    "affordable": balance is None or cost <= balance, "note": _NOTES.get(aid),
+                    "group": "game" if aid in _GAME_ACTIONS else None,
                     "message": f"{text} {_CONFIRM.format(cost=cost)}" if cost and not choice else text})
     return {"task": task_id, "type": kind, "spent": spent, "balance": balance, "actions": out}
 

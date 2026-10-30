@@ -73,6 +73,7 @@ export function TaskCard({
   const [fromSource, setFromSource] = useState(false)
   const [opening, setOpening] = useState(false)
   const [openError, setOpenError] = useState<null | string>(null)
+  const [playing, setPlaying] = useState(false)
   const busy = useRef(false) // state lags a render: two clicks in one tick would both pass an `opening` check
   const name = title || info?.prompt || `Tripo task ${task.slice(0, 8)}`
   const done = info?.status === 'success' || Boolean(savedPath)
@@ -104,7 +105,7 @@ export function TaskCard({
     if (path && !opening) {
       body = (
         <>
-          <ModelViewer height={320} os={os} path={path} rest={rest} />
+          <ModelViewer height={320} os={os} path={path} play={playing} rest={rest} />
           {fromSource && <div style={{ ...V.line, ...V.sub }}>Shown from the source model: this conversion only changed the file format.</div>}
         </>
       )
@@ -164,6 +165,20 @@ export function TaskCard({
         <span style={V.cardTitle}>{name}</span>
         {typeof info?.credits === 'number' && info.credits > 0 && <span style={V.sub}>{info.credits} cr</span>}
         <span style={V.spacer} />
+        {done && !streaming && !path && info?.type === 'animate_retarget' && (
+          <Button
+            disabled={opening}
+            onClick={() => {
+              setPlaying(true)
+              void open()
+            }}
+            size="sm"
+            title="Open it in Play mode: move the character with the keyboard"
+            variant="ghost"
+          >
+            <Codicon name="game" /> Play
+          </Button>
+        )}
         {done && !streaming && <ActionMenu chat={chat} rest={rest} task={task} what={kindOfType(info?.type ?? '')} />}
         {done && !streaming && <FormatMenu chat={chat} os={os} rest={rest} task={task} />}
         {done && (

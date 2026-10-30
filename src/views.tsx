@@ -11,12 +11,13 @@ import type { PluginContext } from '@hermes/plugin-sdk'
 // fail to load.
 import * as sdk from '@hermes/plugin-sdk'
 import { Button, Codicon, host } from '@hermes/plugin-sdk'
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, Fragment, useCallback, useEffect, useRef, useState } from 'react'
 
 import { type ActiveTask, type ProgressState, stageWord } from './active.ts'
 import { cardChat, type ChatSender, recordedChat } from './chat.ts'
 import { type Filter, type GalleryRow, kindOf, rowFromTask, type StorageStatus, visibleRows } from './gallery.ts'
 import { extensionOf, mtlLibOf, mtlTextures, siblingPath } from './parse-model.ts'
+import { CONTROLS } from './play.ts'
 import { createStage, dataUrlToBuffer, type ModelStats, type Stage } from './stage.ts'
 import { type Balance, balanceLabel } from './status.ts'
 import { TaskCard } from './task-card.tsx'
@@ -163,7 +164,8 @@ export function Thumb({ rest, url, path, style, alt = '' }: { rest: Rest; url?: 
   return shown ? <img alt={alt} referrerPolicy="no-referrer" src={shown} style={style} /> : null
 }
 
-export function ModelViewer({ rest, os, path, height, autoRotate = false }: { rest: Rest; os: Os; path: string; height: number | string; autoRotate?: boolean }) {
+/** `play`: open an animated model in Play mode, its character driven by the keyboard. */
+export function ModelViewer({ rest, os, path, height, autoRotate = false, play = false }: { rest: Rest; os: Os; path: string; height: number | string; autoRotate?: boolean; play?: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Stage | null>(null)
   const [state, setState] = useState<{ phase: 'error' | 'loading' | 'ready'; message?: string }>({ phase: 'loading' })
@@ -175,6 +177,7 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
   const [clip, setClip] = useState(0)
   const [playing, setPlaying] = useState(true)
   const [loop, setLoop] = useState(true)
+  const [gaming, setGaming] = useState(false)
 
   useEffect(() => {
     const el = hostRef.current
@@ -239,7 +242,20 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
   useEffect(() => stageRef.current?.setWireframe(wire), [wire, stats])
   useEffect(() => stageRef.current?.setGrid(grid), [grid])
   useEffect(() => stageRef.current?.setLoop(loop), [loop])
+  useEffect(() => stageRef.current?.setPlayMode(gaming), [gaming, stats])
+  useEffect(() => {
+    if (play && stats?.animations.length) {
+      setGaming(true)
+    }
+  }, [play, stats])
   const clips = stats?.animations ?? []
+  // Leaving Play mode resumes the clip it interrupted.
+  const setGame = (on: boolean) => {
+    setGaming(on)
+    if (!on) {
+      setPlaying(true)
+    }
+  }
 
   const toggle = (on: boolean, set: (v: boolean) => void, icon: string, label: string) => (
     <Button aria-label={label} aria-pressed={on} onClick={() => set(!on)} size="icon" style={on ? V.toolOn : undefined} title={label} variant="ghost">
@@ -248,7 +264,16 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
   )
 
   return (
-    <div data-tripo-phase={state.phase} style={{ ...V.viewer, height }}>
+    <div
+      data-tripo-phase={state.phase}
+      onKeyDown={e => {
+        if (gaming && e.key === 'Escape') {
+          e.stopPropagation()
+          setGame(false)
+        }
+      }}
+      style={{ ...V.viewer, height }}
+    >
       <div ref={hostRef} style={V.stage} />
       {state.phase === 'loading' && (
         <div style={V.overlay}>
@@ -262,7 +287,8 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
       )}
       {state.phase === 'ready' && (
         <div style={V.toolbar}>
-          {clips.length > 0 && (
+          {clips.length > 0 && toggle(gaming, setGame, 'game', gaming ? 'Leave Play mode' : 'Play mode: move the character with the keyboard')}
+          {!gaming && clips.length > 0 && (
             <Button
               aria-label={playing ? 'Pause animation' : 'Play animation'}
               onClick={() => {
@@ -276,8 +302,8 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
               <Codicon name={playing ? 'debug-pause' : 'play'} />
             </Button>
           )}
-          {clips.length > 0 && toggle(loop, setLoop, 'debug-restart', loop ? 'Loop (on)' : 'Loop (off: play once)')}
-          {clips.length > 1 && (
+          {!gaming && clips.length > 0 && toggle(loop, setLoop, 'debug-restart', loop ? 'Loop (on)' : 'Loop (off: play once)')}
+          {!gaming && clips.length > 1 && (
             <select
               aria-label="Animation clip"
               onChange={e => {
@@ -296,7 +322,7 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
               ))}
             </select>
           )}
-          {toggle(spin, setSpin, 'sync', 'Auto-rotate')}
+          {!gaming && toggle(spin, setSpin, 'sync', 'Auto-rotate')}
           {toggle(wire, setWire, 'symbol-structure', 'Wireframe')}
           {toggle(grid, setGrid, 'symbol-numeric', 'Grid')}
           <Button aria-label="Reset view" onClick={() => stageRef.current?.resetView()} size="icon" title="Reset view" variant="ghost">
@@ -307,7 +333,8 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false }: { re
           </Button>
         </div>
       )}
-      {stats && (
+      {gaming && <div style={V.stats}>Click the model, then: {CONTROLS} · Esc exits</div>}
+      {stats && !gaming && (
         <div style={V.stats}>
           {file ? `${file.name} · ${fmtBytes(file.bytes)} · ` : ''}
           {fmtCount(stats.triangles)} tris · {fmtCount(stats.vertices)} verts
@@ -342,6 +369,10 @@ interface ActionRow {
   choice: boolean
   affordable: boolean
   message: string
+  /** A line under the label: what Tripo does there. */
+  note?: null | string
+  /** 'game': listed under the Game Studio heading. */
+  group?: null | string
 }
 
 interface ActionsReply {
@@ -352,13 +383,19 @@ interface ActionsReply {
 
 const ACTION_ICONS: Record<string, string> = {
   texture: 'symbol-color',
+  retexture: 'paintcan',
   decimate: 'type-hierarchy',
+  resize: 'arrow-both',
   rig_check: 'check-all',
   rig: 'person',
   segment: 'split-horizontal',
   regenerate: 'refresh',
   animate: 'play',
-  make3d: 'symbol-misc'
+  make3d: 'symbol-misc',
+  playable: 'game',
+  prototype: 'globe',
+  engine: 'rocket',
+  more_clips: 'add'
 }
 
 const warnNoChat = (sent: boolean) => sent || host.notify({ kind: 'warning', message: 'Open a chat to send this to Hermes' })
@@ -395,17 +432,25 @@ export function ActionMenu({ rest, task, chat, what = 'model' }: { rest: Rest; t
           </Item>
         ) : (
           <>
-            {data.actions.map(row => (
-              <Item
-                disabled={!row.affordable}
-                key={`${row.id}:${row.label}`}
-                onSelect={() => void chat.submit(row.message).then(warnNoChat)}
-                title={row.affordable ? row.message : `Needs ${row.cost} credits`}
-              >
-                <Codicon name={ACTION_ICONS[row.id] ?? 'circle-small'} />
-                <span style={{ flex: 1 }}>{row.label}</span>
-                <span style={V.cost}>{row.choice ? row.price.replace(' credits', ' cr') : row.cost ? `${row.cost} cr` : 'free'}</span>
-              </Item>
+            {data.actions.map((row, i) => (
+              <Fragment key={`${row.id}:${row.label}`}>
+                {row.group === 'game' && data.actions[i - 1]?.group !== 'game' && (
+                  <>
+                    <Separator />
+                    <Item disabled>
+                      <Codicon name="game" /> Game Studio
+                    </Item>
+                  </>
+                )}
+                <Item disabled={!row.affordable} onSelect={() => void chat.submit(row.message).then(warnNoChat)} title={row.affordable ? row.message : `Needs ${row.cost} credits`}>
+                  <Codicon name={ACTION_ICONS[row.id] ?? 'circle-small'} />
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {row.label}
+                    {row.note && <span style={V.sub}>{row.note}</span>}
+                  </span>
+                  <span style={V.cost}>{row.choice ? row.price.replace(' credits', ' cr') : row.cost ? `${row.cost} cr` : 'free'}</span>
+                </Item>
+              </Fragment>
             ))}
             {data.actions.length === 0 && <Item disabled>No follow-ups for this kind of task</Item>}
             <Separator />

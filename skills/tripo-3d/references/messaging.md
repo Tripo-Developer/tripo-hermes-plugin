@@ -67,12 +67,18 @@ list the next steps as a short numbered list with their credits, the same follow
 card's Next menu offers for that result:
 
 - a model (made from text, an image or views; retextured, imported or with fewer faces):
-  Texture it · 10–30 credits (standard, detailed or extreme), Lower the face count · 30 credits,
-  Check rigging · free, Rig it · 25 credits, Split into parts · 40 credits; a text-to-3D model
-  also Regenerate · the same credits again;
-- a rigged model: Animate · 10 credits per clip;
-- an image or a multiview sheet: Make a 3D model · 30–110 credits (v3.1 30, P1 50, P2 110).
+  Texture it · 10–30 credits (standard, detailed or extreme) when it has no texture, else
+  Retexture · 10–30 credits (a new style); Remesh · 30 credits (triangles or quads),
+  Resize · 10 credits, Check rigging · free, Rig it · 25 credits, Split into parts · 40 credits,
+  Make it playable · 25–75 credits (rig and game clips); a text-to-3D model also
+  Regenerate · the same credits again;
+- a rigged model: Animate · 10 credits per clip, Make it playable · 10–50 credits;
+- an animated model: Playable web prototype · free (a folder on the Hermes machine),
+  Export to a game engine · up to 10 credits (Godot free, Unity or Unreal 5 or 10),
+  Add clips · 10 credits per clip;
+- an image or a multiview sheet: Make a 3D model · 30–110 credits (v3.1 30, P2 110, P1 50).
 
 A reply with just a number picks that step and confirms a fixed price. When the price depends on
-a choice (quality, clips, model), ask it with the credits of each option first. Rig it runs the
-free rig check first and stops when the model is not riggable.
+a choice (quality, clips, model, engine), ask it with the credits of each option first. Rig it runs
+the free rig check first and stops when the model is not riggable. Make it playable, Playable web
+prototype and Export to a game engine follow the Game Studio steps of the tripo-game-asset skill.

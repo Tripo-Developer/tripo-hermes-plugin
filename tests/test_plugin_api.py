@@ -432,13 +432,28 @@ def test_actions_offer_each_task_types_follow_ups_with_their_credits(api, fake):
     out = api.actions(_A)
     assert (out["type"], out["spent"], out["balance"]) == ("text_to_model", 20, 30)
     rows = {r["id"]: r for r in out["actions"]}
-    assert list(rows) == ["texture", "decimate", "rig_check", "rig", "segment", "regenerate"]
+    assert list(rows) == ["retexture", "decimate", "resize", "rig_check", "rig", "segment", "regenerate", "playable"]
     assert rows["rig"]["message"].startswith(f'Tripo task {_A} ("prompt of a1"): rig it with tripo_rig (input "{_A}"')
     assert rows["rig"]["message"].endswith("This button message is my confirmation of the 25-credit cost.")
+    assert "unreal (UE Mannequin)" in rows["rig"]["message"] and "creature" in rows["rig"]["note"]
     assert rows["regenerate"]["cost"] == 20 and rows["regenerate"]["message"].endswith("of the 20-credit cost.")
-    assert "clarify" in rows["texture"]["message"] and "confirmation" not in rows["texture"]["message"]
+    assert "style in words" in rows["retexture"]["message"] and "confirmation" not in rows["retexture"]["message"]
+    assert rows["decimate"]["label"] == "Remesh" and "quads" in rows["decimate"]["message"]
+    resize = rows["resize"]["message"]
+    assert "scale_factor" in resize and "auto_size" not in resize and resize.endswith("of the 10-credit cost.")
     assert rows["rig_check"]["cost"] == 0 and "confirmation" not in rows["rig_check"]["message"]
     assert [a for a, r in rows.items() if not r["affordable"]] == ["segment"]
+    # Game Studio: a choice of clips sets the price, so it is asked with clarify, never confirmed by the button.
+    playable = rows["playable"]
+    assert (playable["group"], playable["cost"], playable["choice"]) == ("game", 25, True)
+    assert "tripo_rig_check" in playable["message"] and "confirmation" not in playable["message"]
+    assert [a for a, r in rows.items() if r["group"] == "game"] == ["playable"]
+
+    white = _task(fake, _A)
+    white["input"] = {"prompt": "prompt of a1", "texture": False, "pbr": False}
+    fake.api("GET", f"/v3/tasks/{_A}", white)
+    ids = [r["id"] for r in api.actions(_A)["actions"]]
+    assert "texture" in ids and "retexture" not in ids
 
     for task_id, type_, tool in ((_IMG, "generate_image", "tripo_image_to_3d"),
                                  (_B, "generate_multiview_image", "tripo_multiview_to_3d")):
@@ -447,7 +462,19 @@ def test_actions_offer_each_task_types_follow_ups_with_their_credits(api, fake):
         (row,) = api.actions(task_id)["actions"]
         assert (row["id"], row["choice"]) == ("make3d", True) and tool in row["message"] and "P2 110" in row["message"]
     fake.api("GET", f"/v3/tasks/{_C}", _task(fake, _C, type_="animate_rig"))
-    assert [r["id"] for r in api.actions(_C)["actions"]] == ["animate"]
+    rows = {r["id"]: r for r in api.actions(_C)["actions"]}
+    assert list(rows) == ["animate", "playable"] and rows["playable"]["cost"] == 10
+
+    animated = _task(fake, _B, type_="animate_retarget")
+    animated["input"] = {"animation": "preset:walk", "original_model_id": _C}
+    fake.api("GET", f"/v3/tasks/{_B}", animated)
+    rows = {r["id"]: r for r in api.actions(_B)["actions"]}
+    assert list(rows) == ["prototype", "engine", "more_clips"] and {r["group"] for r in rows.values()} == {"game"}
+    assert f'task_id "{_C}"' in rows["more_clips"]["message"]  # more clips go on the rig, not on this animation
+    assert rows["prototype"]["cost"] == 0 and "confirmation" not in rows["prototype"]["message"]
+    animated["input"] = {"animation": "preset:walk"}
+    fake.api("GET", f"/v3/tasks/{_B}", animated)
+    assert [r["id"] for r in api.actions(_B)["actions"]] == ["prototype", "engine"]
 
     fake.api("GET", "/v3/account/balance", status=500, code=2000)
     assert api.actions(_A)["balance"] is None and all(r["affordable"] for r in api.actions(_A)["actions"])

@@ -8,7 +8,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
-    "build": "esbuild src/plugin.tsx --bundle --format=esm --platform=browser --jsx=automatic --minify --legal-comments=eof --external:@hermes/plugin-sdk --external:react --external:react/jsx-runtime --outfile=desktop/plugin.js"
+    "build": "esbuild src/plugin.tsx --bundle --format=esm --platform=browser --jsx=automatic --minify --legal-comments=eof --external:@hermes/plugin-sdk --external:react --external:react/jsx-runtime --outfile=desktop/plugin.js && esbuild src/play.ts --format=esm --banner:js=\"// Built from the Tripo Hermes plugin's src/play.ts (npm run build).\" --outfile=skills/tripo-game-asset/assets/playable-web/play.js"
   },
   "dependencies": {
     "three": "0.180.0"

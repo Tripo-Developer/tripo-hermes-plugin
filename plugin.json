@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "tripo",
   "version": "0.1.0",
-  "description": "Generate 3D models with Tripo from Hermes: text, image or multiview to 3D, helper images, texturing, rigging and animation, retopology, segmentation and format conversion. Runs Tripo's official tripo-cli MCP server locally (pinned tripo-cli@0.9.0 over npx stdio, international accounts, your Tripo API key) with the tripo-3d and tripo-game-asset workflow skills. Credit-spending calls ask for approval first. In Hermes Desktop: inline 3D cards with Next and Download menus, a Tripo 3D gallery and a credit chip.",
+  "description": "Generate 3D models with Tripo from Hermes: text, image or multiview to 3D, helper images, texturing, rigging and animation, retopology, segmentation and format conversion. Game Studio turns a model into a character you control, played in the Desktop card, as a three.js web prototype or in Godot, Unity or Unreal. Runs Tripo's official tripo-cli MCP server locally (pinned tripo-cli@0.9.0 over npx stdio, international accounts, your Tripo API key) with the tripo-3d and tripo-game-asset workflow skills. Credit-spending calls ask for approval first. In Hermes Desktop: inline 3D cards with Next and Download menus and a Play mode, a Tripo 3D gallery and a credit chip.",
   "author": {
     "name": "VAST",
     "url": "https://developers.tripo3d.ai/en"
@@ -79,7 +79,7 @@
           ],
           "default": "ask",
           "label": "Default 3D model",
-          "description": "How the Tripo skill picks the 3D generation model when you do not name one. Ask offers v3.1, P1 and P2 with their credits; v3.1 (general use, about 20-30 credits textured) or P2 (games and real-time, about 110) is used without asking. The plan still shows the price for your yes."
+          "description": "How the Tripo skill picks the 3D generation model when you do not name one. Ask offers v3.1, P2 and P1 with their credits; v3.1 (general use, about 20-30 credits textured) or P2 (games and real-time, about 110) is used without asking. The plan still shows the price for your yes."
         },
         "blender_path": {
           "type": "str",
