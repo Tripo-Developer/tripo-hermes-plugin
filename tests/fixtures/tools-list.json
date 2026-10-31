@@ -5,7 +5,7 @@
     {
       "name": "tripo_plan",
       "title": "Plan workflow (confirm before running)",
-      "description": "Draft the step list of a Tripo workflow BEFORE calling any other tripo tool: one entry per intended call (tool, what it does, key params). Returns the same steps labelled billed/free so the user can review exactly what will run and what spends credits; present it and wait for explicit confirmation. Free, no upstream call. Skip only for pure read-only queries (balance, usage, task status).",
+      "description": "Draft an advisory workflow, not an authorization ticket or execution gate. Free, no upstream call. For 3D generation steps supply structured generation parameters to resolve the final model using the same rules as dry_run; v3.1/P2 generation steps then carry the official list price of that step as cost_estimate, while P1, legacy models and all other steps are not_estimated (never zero credits). Legacy free-text params are not parsed or validated; model stays unresolved. Review an exact dry_run payload, and current pricing for not_estimated steps, before confirming any billed call. Skip for pure read-only queries.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -58,6 +58,142 @@
                   "minLength": 1,
                   "maxLength": 300,
                   "description": "what this step does for the user"
+                },
+                "generation": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "enum": [
+                        "v3.1",
+                        "v3.1-20260211",
+                        "tripo-v3.1",
+                        "H3.1",
+                        "P1",
+                        "P1-20260311",
+                        "p1",
+                        "tripo-p1",
+                        "P1.0",
+                        "v3.0",
+                        "v3.0-20250812",
+                        "tripo-v3.0",
+                        "H3.0",
+                        "v2.5",
+                        "v2.5-20250123",
+                        "tripo-v2.5",
+                        "H2.5",
+                        "P2",
+                        "P2-20260801",
+                        "p2",
+                        "tripo-p2",
+                        "P2.0"
+                      ],
+                      "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+                    },
+                    "texture": {
+                      "type": "boolean",
+                      "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
+                    },
+                    "pbr": {
+                      "type": "boolean",
+                      "description": "PBR materials (implies texture); default false — set true only when the user explicitly asks for PBR"
+                    },
+                    "texture_quality": {
+                      "type": "string",
+                      "enum": [
+                        "fast",
+                        "standard",
+                        "detailed",
+                        "extreme"
+                      ],
+                      "description": "fast = quickest, same size and credits as standard, needs texture model v3.5 (picked automatically when texture_version is omitted); extreme = 8K, extra credits"
+                    },
+                    "texture_version": {
+                      "type": "string",
+                      "enum": [
+                        "v3.5",
+                        "v3.5-20260815",
+                        "v3.0",
+                        "v3.0-20250812",
+                        "v2.5",
+                        "v2.5-20250123"
+                      ],
+                      "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0); short names and full IDs (v3.5-20260815 …) are accepted"
+                    },
+                    "delight": {
+                      "type": "boolean",
+                      "description": "remove baked-in lighting from the reference before texturing (default true; texture model v3.5 only)"
+                    },
+                    "geometry_quality": {
+                      "type": "string",
+                      "enum": [
+                        "standard",
+                        "detailed"
+                      ],
+                      "description": "detailed = Ultra mode with finer geometry and up to 2M faces (v3.x only; extra credits)"
+                    },
+                    "face_limit": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
+                    },
+                    "quad": {
+                      "type": "boolean",
+                      "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+                    },
+                    "smart_low_poly": {
+                      "type": "boolean",
+                      "description": "game-style low-poly output (v3.x only; face_limit 500–20000)"
+                    },
+                    "generate_parts": {
+                      "type": "boolean",
+                      "description": "segmented editable parts, bare geometry (v3.x only)"
+                    },
+                    "auto_size": {
+                      "type": "boolean",
+                      "description": "scale to real-world size in meters (AR/VR, game engines)"
+                    },
+                    "compress": {
+                      "type": "string",
+                      "enum": [
+                        "geometry"
+                      ],
+                      "description": "meshopt geometry compression for a smaller file"
+                    },
+                    "export_uv": {
+                      "type": "boolean",
+                      "description": "UV unwrapping during generation (default true); false = faster and smaller, UVs are created when texturing"
+                    },
+                    "model_seed": {
+                      "type": "integer",
+                      "description": "fixed seed → identical geometry on re-runs"
+                    },
+                    "texture_seed": {
+                      "type": "integer",
+                      "description": "fixed seed → identical textures; keep model_seed and vary this to re-texture the same shape"
+                    },
+                    "export_orientation": {
+                      "type": "string",
+                      "enum": [
+                        "+x",
+                        "-x",
+                        "+y",
+                        "-y"
+                      ],
+                      "description": "forward axis of this export only; leave unset when the model will be post-processed (texture/rig/convert) and orient in tripo_convert at the end instead"
+                    },
+                    "dry_run": {
+                      "type": "boolean",
+                      "description": "true = validate only, no task and no credits: returns the resolved model, the exact request payload after linkage rules and the adjustment notes; call again without dry_run to submit"
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1024
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "3D generation model options only; text-to-3D also requires its exact prompt. Not an executable request; use dry_run for the full payload including image references."
                 },
                 "params": {
                   "type": "string",
@@ -116,20 +252,32 @@
             "enum": [
               "v3.1",
               "v3.1-20260211",
+              "tripo-v3.1",
+              "H3.1",
               "P1",
               "P1-20260311",
+              "p1",
+              "tripo-p1",
+              "P1.0",
               "v3.0",
               "v3.0-20250812",
+              "tripo-v3.0",
+              "H3.0",
               "v2.5",
               "v2.5-20250123",
+              "tripo-v2.5",
+              "H2.5",
               "P2",
-              "P2-20260801"
+              "P2-20260801",
+              "p2",
+              "tripo-p2",
+              "P2.0"
             ],
-            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true)"
+            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
           },
           "pbr": {
             "type": "boolean",
@@ -149,10 +297,13 @@
             "type": "string",
             "enum": [
               "v3.5",
+              "v3.5-20260815",
               "v3.0",
-              "v2.5"
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123"
             ],
-            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0); short names and full IDs (v3.5-20260815 …) are accepted"
           },
           "delight": {
             "type": "boolean",
@@ -169,7 +320,7 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
           },
           "quad": {
             "type": "boolean",
@@ -323,20 +474,32 @@
             "enum": [
               "v3.1",
               "v3.1-20260211",
+              "tripo-v3.1",
+              "H3.1",
               "P1",
               "P1-20260311",
+              "p1",
+              "tripo-p1",
+              "P1.0",
               "v3.0",
               "v3.0-20250812",
+              "tripo-v3.0",
+              "H3.0",
               "v2.5",
               "v2.5-20250123",
+              "tripo-v2.5",
+              "H2.5",
               "P2",
-              "P2-20260801"
+              "P2-20260801",
+              "p2",
+              "tripo-p2",
+              "P2.0"
             ],
-            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true)"
+            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
           },
           "pbr": {
             "type": "boolean",
@@ -356,10 +519,13 @@
             "type": "string",
             "enum": [
               "v3.5",
+              "v3.5-20260815",
               "v3.0",
-              "v2.5"
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123"
             ],
-            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0); short names and full IDs (v3.5-20260815 …) are accepted"
           },
           "delight": {
             "type": "boolean",
@@ -376,7 +542,7 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
           },
           "quad": {
             "type": "boolean",
@@ -494,20 +660,32 @@
             "enum": [
               "v3.1",
               "v3.1-20260211",
+              "tripo-v3.1",
+              "H3.1",
               "P1",
               "P1-20260311",
+              "p1",
+              "tripo-p1",
+              "P1.0",
               "v3.0",
               "v3.0-20250812",
+              "tripo-v3.0",
+              "H3.0",
               "v2.5",
               "v2.5-20250123",
+              "tripo-v2.5",
+              "H2.5",
               "P2",
-              "P2-20260801"
+              "P2-20260801",
+              "p2",
+              "tripo-p2",
+              "P2.0"
             ],
-            "description": "v3.1-20260211 (v3.1) = H-series geometry for dense meshes or v3-only options; P1-20260311 (P1) = lower-cost P-series choice when explicitly requested (50–20000 faces); P2-20260801 (P2) = P-series topology for real-time, editable, game or quad assets (48–50000 tri / 48–25000 quad). Full version IDs and short names are accepted. When omitted, game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; dense geometry, v3-only options, over-P2 budgets, and an otherwise unspecified request choose v3.1. Visual and texture quality do not choose a geometry model, and PC/console use is not a reason to prefer H. Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true)"
+            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
           },
           "pbr": {
             "type": "boolean",
@@ -527,10 +705,13 @@
             "type": "string",
             "enum": [
               "v3.5",
+              "v3.5-20260815",
               "v3.0",
-              "v2.5"
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123"
             ],
-            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0)"
+            "description": "texture model, independent of the geometry model: v3.5 = newest (needed for fast/delight); default follows the geometry (v2.5 → v2.5, otherwise v3.0); short names and full IDs (v3.5-20260815 …) are accepted"
           },
           "delight": {
             "type": "boolean",
@@ -547,7 +728,7 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; a P2-range budget chooses P2 when model is omitted, while a larger budget chooses v3.1"
+            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
           },
           "quad": {
             "type": "boolean",
@@ -681,7 +862,7 @@
               "gemini-3-pro",
               "gemini-3.1-flash"
             ],
-            "description": "default seedream_v4 (text) / seedream_v5 (image edit; seedream_v4 not accepted there); chat_image_2.5_flare = faster tier, chat_image_2.5_sunburst = refined tier that best preserves untouched areas when editing; chat_image_1 retires 2026-10-23 and chat_image_1.5 on 2026-12-01; gemini-2.5-flash / gemini-3-pro / gemini-3.1-flash are sent as banana / banana_pro / banana2"
+            "description": "default seedream_v4 (text) / seedream_v5 (image edit; seedream_v4 not accepted there); chat_image_2.5_flare = faster tier, chat_image_2.5_sunburst = refined tier that best preserves untouched areas when editing; chat_image_1 is retired (rejected locally since 2026-10-23) and chat_image_1.5 on 2026-12-01; gemini-2.5-flash / gemini-3-pro / gemini-3.1-flash are sent as banana / banana_pro / banana2"
           },
           "template": {
             "type": "string",
@@ -696,7 +877,7 @@
           },
           "size": {
             "type": "string",
-            "description": "output size: a tier like 1K/2K/4K (model-dependent) or WxH pixels; default 2048x2048. chat_image_2/2.5 custom WxH: each side ≤3840 and a multiple of 16, long side ≤3× short side, 655360–8294400 total pixels"
+            "description": "output size, default 2048x2048; accepted values differ per model: banana fixed 1024x1024/832x1248/1248x832/864x1184/1184x864/896x1152/1152x896/768x1344/1344x768/1536x672; banana_pro 1K/2K/4K or WxH; banana2 0.5K/1K/2K/4K; seedream_v4 2K/4K, seedream_v5 2K/3K (WxH within 1:16–16:1); chat_image_1.5 1024x1024/1024x1536/1536x1024/auto; chat_image_2/2.5 auto or WxH with each side ≤3840 and a multiple of 16, long side ≤3× short side, 655360–8294400 total pixels"
           },
           "aspect_ratio": {
             "type": "string",
@@ -954,10 +1135,13 @@
             "type": "string",
             "enum": [
               "v3.5",
+              "v3.5-20260815",
               "v3.0",
-              "v2.5"
+              "v3.0-20250812",
+              "v2.5",
+              "v2.5-20250123"
             ],
-            "description": "texture model version (default v3.0; v3.5 = newest, needed for fast/delight)"
+            "description": "texture model version (default v3.0; v3.5 = newest, needed for fast/delight); short names and full IDs (v3.5-20260815 …) are accepted"
           },
           "prompt": {
             "type": "string",
@@ -1051,7 +1235,7 @@
     {
       "name": "tripo_rig",
       "title": "Rig model",
-      "description": "Add an animation skeleton to a model (seven named body types, or others). input accepts a model-producing task_id, a file_token, or a model file URL. Required before tripo_animate. Billed separately. Unless model is set: biped (or unset), others and the actorcore/unity/unreal/vrm specs → v3.0 rig, other body types → v2.5 creature rig. Set model=v1.0 up front when the user wants humanoid clips beyond the universal presets (dance, greetings, sports… — the 90+ preset:biped:* clips exist only on v1.0 rigs); the result reports the model used and which preset family tripo_animate must use.",
+      "description": "Add an animation skeleton to a model (seven named body types, or others). input accepts a model-producing task_id, a file_token, or a model file URL. Required before tripo_animate. Billed separately. Unless model is set, every body type uses the v3.0 rig (on non-biped body types it matches the v2.5 creature rig at the same price). Set model=v1.0 up front when the user wants humanoid clips beyond the universal presets (dance, greetings, sports… — the 90+ preset:biped:* clips exist only on v1.0 rigs); the result reports the model used and which preset family tripo_animate must use.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1101,9 +1285,13 @@
               "v2.5",
               "v2.5-20260210",
               "v1.0",
-              "v1.0-20240301"
+              "v1.0-20240301",
+              "rig-v3.0",
+              "rig-v2.5",
+              "rig-v2.0",
+              "rig-v1.0"
             ],
-            "description": "v3.0-20260909 (v3.0) = recommended humanoid rig, faster and better at the same price; the only model for rig_type=others and the actorcore/unity/unreal/vrm specs. v2.5-20260210 (v2.5) = creature rig for quadruped/hexapod/octopod/avian/serpentine/aquatic. v3.0 and v2.5 share the universal presets. v1.0-20240301 (v1.0) = legacy humanoid rig and server default, the only one with the 90+ preset:biped:* clips. Auto-chosen when omitted"
+            "description": "v3.0-20260909 (v3.0) = recommended humanoid rig, faster and better at the same price, matching v2.5 on other body types; the only model for rig_type=others and the actorcore/unity/unreal/vrm specs. v2.5-20260210 (v2.5) = creature rig for quadruped/hexapod/octopod/avian/serpentine/aquatic. v3.0 and v2.5 share one preset set (generic clips for bipeds, body-type clips for creatures). v1.0-20240301 (v1.0) = legacy humanoid rig and server default, the only one with the 90+ preset:biped:* clips. Defaults to v3.0 for every body type when omitted. The CLI names rig-v3.0 / rig-v2.5 / rig-v1.0 are accepted too (rig-v2.0 = v2.5)"
           }
         },
         "required": [
@@ -1122,7 +1310,7 @@
     {
       "name": "tripo_animate",
       "title": "Animate rigged model",
-      "description": "Apply preset animations to a rig task (input must be a successful tripo_rig task_id). Preset names depend on the rig model reported by tripo_rig: v3.0 rigs (the default for biped) and v2.5 creature rigs take preset:idle, preset:walk, preset:run, preset:dive, preset:climb, preset:jump, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn plus body-type presets (preset:quadruped:walk, preset:hexapod:walk, preset:octopod:walk, preset:serpentine:march, preset:aquatic:march); v1.0 humanoid rigs take only the 90+ preset:biped:* clips (preset:biped:idle, preset:biped:walk, preset:biped:run, preset:biped:jump, preset:biped:dance_01, preset:biped:wave_goodbye_01, …). Billed per animation, max 5.",
+      "description": "Apply preset animations to a rig task (input must be a successful tripo_rig task_id). Preset names depend on the rig model and body type reported by tripo_rig: v3.0/v2.5 biped rigs (v3.0 is the default rig) take preset:idle, preset:walk, preset:run, preset:dive, preset:climb, preset:jump, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn; v3.0/v2.5 creature rigs take only their body-type preset (preset:quadruped:walk, preset:hexapod:walk, preset:octopod:walk, preset:serpentine:march, preset:aquatic:march; avian and others have none); v1.0 humanoid rigs take only the 90+ preset:biped:* clips (preset:biped:idle, preset:biped:walk, preset:biped:run, preset:biped:jump, preset:biped:dance_01, preset:biped:wave_goodbye_01, …). Billed per animation, max 5.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1131,6 +1319,9 @@
             "minLength": 1,
             "description": "a successful tripo_rig task"
           },
+          "bake_animation": {
+            "description": "Deprecated and ignored; omit this parameter."
+          },
           "animations": {
             "type": "array",
             "items": {
@@ -1138,7 +1329,7 @@
             },
             "minItems": 1,
             "maxItems": 5,
-            "description": "e.g. [\"preset:walk\", \"preset:idle\"] for a v3.0 or v2.5 rig, [\"preset:biped:walk\", \"preset:biped:dance_01\"] for a v1.0 humanoid rig"
+            "description": "e.g. [\"preset:walk\", \"preset:idle\"] for a v3.0/v2.5 biped rig, [\"preset:quadruped:walk\"] for a quadruped rig, [\"preset:biped:walk\", \"preset:biped:dance_01\"] for a v1.0 humanoid rig"
           },
           "out_format": {
             "type": "string",
@@ -1173,7 +1364,7 @@
     {
       "name": "tripo_convert",
       "title": "Convert / export format",
-      "description": "Convert a model to a target format (GLTF/USDZ/FBX/OBJ/STL/3MF), optionally retopologizing via face_limit/quad. input accepts a model-producing task_id, a file_token, or a model file URL. Note: quad cannot export GLTF; non-default options bill as \"complex convert\".",
+      "description": "Convert a model to a target format (GLTF/USDZ/FBX/OBJ/STL/3MF), optionally retopologizing via face_limit/quad. input accepts a model-producing task_id, a file_token, or a model file URL. Note: quad output is always FBX (GLTF is rejected, other formats are overridden); 3MF output is single colour, so for colour prints export OBJ with export_vertex_colors; non-default options bill as \"complex convert\".",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1272,8 +1463,10 @@
             "enum": [
               "blender",
               "3dsmax",
-              "mixamo"
-            ]
+              "mixamo",
+              "bake_scale"
+            ],
+            "description": "FBX only; blender (default) / 3dsmax / mixamo / bake_scale (bake the scale transform into the geometry)"
           },
           "export_orientation": {
             "type": "string",
@@ -1495,7 +1688,7 @@
     {
       "name": "tripo_mesh_edit",
       "title": "Edit mesh region (P2)",
-      "description": "Regenerate or refine one region of an existing model with the P2 pipeline (model is fixed to P2-20260801, Preview). input accepts a model-producing task_id, a file_token, or a model file URL; bbox is the axis-aligned box in model space that bounds the region to redo. Optional ref_image guides the result semantically. Billed separately; the rest of the mesh is kept.",
+      "description": "Regenerate or refine one region of an existing model with the P2 pipeline (model is fixed to P2-20260801). input accepts a model-producing task_id, a file_token, or a model file URL; bbox is the axis-aligned box in model space that bounds the region to redo. Optional ref_image guides the result semantically. Billed separately; the rest of the mesh is kept.",
       "inputSchema": {
         "type": "object",
         "properties": {
