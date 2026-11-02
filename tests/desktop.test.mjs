@@ -103,6 +103,41 @@ test('with inline cards turned off the directive line shows as text and model fi
   assert.equal(pick(renderer.data.render(media())).props.children, 'BUILT-IN FILE ROW')
 })
 
+test('Next and Download label quoted prices as dated international estimates', async () => {
+  const menuSdk = sdkStub(true) + '\nexport const DropdownMenu = C, DropdownMenuTrigger = C, DropdownMenuContent = C, DropdownMenuItem = C, DropdownMenuSeparator = C\n'
+  const menuReact = reactStub.replace(
+    'useState = v => [typeof v === \'function\' ? v() : v, () => {}]',
+    'useState = v => [globalThis.__tripoMenuState.shift(), () => {}]'
+  )
+  const stubs = {
+    name: 'menu-stubs',
+    setup(b) {
+      b.onResolve({ filter: /^(@hermes\/plugin-sdk|react|react\/jsx-runtime)$/ }, a => ({ path: a.path, namespace: 'stub' }))
+      b.onLoad({ filter: /.*/, namespace: 'stub' }, a => ({ contents: a.path === '@hermes/plugin-sdk' ? menuSdk : menuReact, loader: 'js' }))
+    }
+  }
+  const out = await build({ entryPoints: [`${root}src/views.tsx`], bundle: true, format: 'esm', jsx: 'automatic', write: false, plugins: [stubs], logLevel: 'error' })
+  const { ActionMenu, FormatMenu } = await import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].contents).toString('base64')}`)
+  const rest = async () => ({})
+  const chat = { submit: async () => true }
+  try {
+    globalThis.__tripoMenuState = [{ spent: 20, balance: 50, actions: [{ id: 'decimate', label: 'Remesh', cost: 30, price: '30 credits', choice: false, affordable: true, message: 'Remesh' }] }, null]
+    const next = JSON.stringify(ActionMenu({ rest, task: 'task', chat }))
+    assert.match(next, /est\. 30 cr/)
+    assert.match(next, /Estimates · Tripo international · 2026-10-30/)
+    assert.match(next, /developers\.tripo3d\.ai\/pricing/)
+    assert.match(next, /not a live quote/)
+
+    globalThis.__tripoMenuState = [{ files: [], conversions: [{ format: 'FBX', cost: 5, message: 'Convert' }] }, null, null]
+    const download = JSON.stringify(FormatMenu({ rest, task: 'task', chat, os: {} }))
+    assert.match(download, /est\. /)
+    assert.match(download, /Estimates · Tripo international · 2026-10-30/)
+    assert.match(download, /developers\.tripo3d\.ai\/pricing/)
+  } finally {
+    delete globalThis.__tripoMenuState
+  }
+})
+
 test('every theme colour comes from Desktop’s documented plugin variables (--ui-*)', async () => {
   // Desktop compiles its own --color-* tokens into its stylesheet, so a plugin reading var(--color-border) gets nothing.
   const out = await build({ entryPoints: [`${root}src/plugin.tsx`], bundle: true, format: 'esm', jsx: 'automatic', write: false, external: ['@hermes/plugin-sdk', 'react', 'react/jsx-runtime'], logLevel: 'error' })

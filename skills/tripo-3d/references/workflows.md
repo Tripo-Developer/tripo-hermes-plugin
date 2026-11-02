@@ -1,21 +1,22 @@
 # Tripo workflows
 
 Pick the chain from what the user is building, put every step into `tripo_plan`, and get the
-user's `clarify` pick (a model with its credits, or "Go ahead") before the first billed call. Each
-arrow is a task followed by waiting until it finishes; the
-`input` of each step is the previous step's task_id unless noted. GLB is the native output: a
+user's `clarify` pick (a model with its credits, or "Go ahead") before the first billed call. Wait
+for each task before dependent work, and check billing and the required input for each tool: a rig
+check is free, rig uses the original model, and animation needs the rig task. GLB is the native output: a
 `tripo_convert` step is only worth its credits when the target needs another format.
 
 ## By goal
 
-- **Quick look or concept model**: from words only, a concept image first (`tripo_generate_image`;
-  `tripo_text_to_3d` only when the user skips it), then `tripo_image_to_3d` with defaults once the
-  user wants the model → `tripo_download`. Show the preview and offer the next steps instead of
-  guessing them.
-- **Game prop, mobile / WebGL / many instances**: explicit `model: "P2"` and a confirmed
+- **Quick look or concept model**: use `tripo_text_to_3d` directly from words, or, when the user
+  wants a concept image first, confirm `tripo_generate_image` and show it; plan and confirm
+  `tripo_image_to_3d` only once the user wants the model → `tripo_download`. Show the preview and
+  offer the next steps instead of guessing them.
+- **Game prop, mobile / WebGL / many instances**: a confirmed model (P2 is a recommendation only
+  when no explicit user model or `default_model` is set) and a confirmed
   `face_limit` → `tripo_convert` `{format: "FBX", texture_size: 2048}` for Unity or Unreal;
   Three.js and Godot take the GLB as is. More in the `tripo-game-asset` skill.
-- **Game hero asset, PC / console**: explicit `model: "P2"`,
+- **Game hero asset, PC / console**: the confirmed model (P2 is an example),
   `texture_quality: "detailed"`, `pbr: false` → FBX only if the engine needs it.
 - **Film, render, close-ups**: `model: "v3.1"` with `geometry_quality: "detailed"` and
   `texture_quality: "detailed"` (both cost extra).
@@ -42,9 +43,9 @@ arrow is a task followed by waiting until it finishes; the
 - **Re-texture**: `tripo_texture` with one guidance: `prompt` (optional `style_image`), `image`,
   or `images` (four views). For a fresh generation of the same shape, keep `model_seed` and change
   `texture_seed`.
-- **The user's existing mesh**: its absolute path or URL goes straight into the `input` of any
-  processing tool. For several steps on one file, `tripo_import_model` first: the import task id
-  (with a preview) then feeds every step without uploading again.
+- **The user's existing mesh**: use its absolute path or URL when the selected tool's schema accepts
+  it. For compatible steps on one file, `tripo_import_model` first; its task id has a preview.
+  Respect the task-type and file-token exceptions in [tools](tools.md) § Inputs.
 - **Fix one region**: `tripo_mesh_edit` with the model as `input` and a `bbox` around the region to
   redo; the rest of the mesh is kept.
 - **Parts**: `generate_parts: true` at generation (v3.x, untextured; re-texture afterwards), or
@@ -73,7 +74,9 @@ whole batch. `tripo_task_list` checks up to 100 task ids in one call. Report the
 
 ## Example: rigged character for Unity
 
-1. `tripo_plan` `{goal: "rigged knight for Unity from the user's T-pose image, with walk and idle", steps: [image_to_3d, rig_check, rig, animate, download]}` → confirm with `clarify`.
+1. `tripo_plan` with each step's `tool` and `purpose`, and the image-to-3D step's structured
+   `generation: {model: "P2", face_limit: 20000, pbr: false}` → confirm with `clarify`. P2 is
+   an example; respect the user's selected model and `default_model`.
 2. `tripo_image_to_3d` `{input: "/Users/me/knight-tpose.png", model: "P2", face_limit: 20000, pbr: false}` → wait.
 3. `tripo_rig_check` `{input: <generation task>}` → wait; read `riggable` and `rig_type`.
 4. `tripo_rig` `{input: <generation task>, model: "v3.0", rig_type: "biped", spec: "unity", out_format: "fbx"}` → wait.

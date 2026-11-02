@@ -399,6 +399,7 @@ const ACTION_ICONS: Record<string, string> = {
 }
 
 const warnNoChat = (sent: boolean) => sent || host.notify({ kind: 'warning', message: 'Open a chat to send this to Hermes' })
+const PRICE_REFERENCE = 'Estimated from the Tripo international price list (developers.tripo3d.ai/pricing), checked 2026-10-30; not a live quote. Regeneration uses the prior task charge.'
 
 /** "Next ▾": the follow-ups Tripo supports for this task with their credits. A pick SENDS a chat message: the agent
  *  runs the tool behind Hermes' approval prompt, so nothing here spends. */
@@ -442,13 +443,13 @@ export function ActionMenu({ rest, task, chat, what = 'model' }: { rest: Rest; t
                     </Item>
                   </>
                 )}
-                <Item disabled={!row.affordable} onSelect={() => void chat.submit(row.message).then(warnNoChat)} title={row.affordable ? row.message : `Needs ${row.cost} credits`}>
+                <Item disabled={!row.affordable} onSelect={() => void chat.submit(row.message).then(warnNoChat)} title={`${row.affordable ? row.message : `Needs ${row.cost} credits`}\n${PRICE_REFERENCE}`}>
                   <Codicon name={ACTION_ICONS[row.id] ?? 'circle-small'} />
                   <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     {row.label}
                     {row.note && <span style={V.sub}>{row.note}</span>}
                   </span>
-                  <span style={V.cost}>{row.choice ? row.price.replace(' credits', ' cr') : row.cost ? `${row.cost} cr` : 'free'}</span>
+                  <span style={V.cost}>{row.choice ? `est. ${row.price.replace(' credits', ' cr')}` : row.cost ? `est. ${row.cost} cr` : 'free'}</span>
                 </Item>
               </Fragment>
             ))}
@@ -462,7 +463,12 @@ export function ActionMenu({ rest, task, chat, what = 'model' }: { rest: Rest; t
                 .filter(Boolean)
                 .join(' · ') || 'Credits unavailable'}
             </Item>
-            <Item disabled>Sends a message; Hermes asks before any credits are spent</Item>
+            <Item disabled title={PRICE_REFERENCE}>
+              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                <span>Estimates · Tripo international · 2026-10-30</span>
+                <span>Sends a message; Hermes asks before any credits are spent</span>
+              </span>
+            </Item>
           </>
         )}
       </Content>
@@ -542,12 +548,17 @@ export function FormatMenu({ rest, os, task, chat, onSaved }: { rest: Rest; os: 
               <>
                 <Separator />
                 {data.conversions.map(row => (
-                  <Item key={row.format} onSelect={() => void chat.submit(row.message).then(warnNoChat)} title={row.message}>
+                  <Item key={row.format} onSelect={() => void chat.submit(row.message).then(warnNoChat)} title={`${row.message}\n${PRICE_REFERENCE}`}>
                     <span style={{ flex: 1 }}>Convert to {row.format}</span>
-                    <span style={V.cost}>{row.cost} cr</span>
+                    <span style={V.cost}>est. {row.cost} cr</span>
                   </Item>
                 ))}
-                <Item disabled>Converting creates a new task · sends a message</Item>
+                <Item disabled title={PRICE_REFERENCE}>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span>Estimates · Tripo international · 2026-10-30</span>
+                    <span>Converting creates a new task · sends a message</span>
+                  </span>
+                </Item>
               </>
             )}
           </>

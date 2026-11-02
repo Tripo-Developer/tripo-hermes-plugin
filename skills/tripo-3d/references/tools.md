@@ -46,9 +46,9 @@ tools skip the prompt).
 - Local files: the absolute path (`~/` works). Images PNG/JPEG/WebP/BMP/TIFF ≤20 MB, models
   GLB/GLTF/FBX/OBJ/STL ≤150 MB; a `.gltf` must be self-contained (no external `.bin` or textures).
 - Signed, short-lived, region-locked or slow image URLs: `tripo_upload_image` first.
-- A successful task id is a valid `input` for every processing tool, and an image task id is a
-  valid `input` for `tripo_image_to_3d`. Exceptions: `tripo_animate` needs a rig task,
-  `tripo_mesh_complete` a segment task, `tripo_smart_segment` takes no task ids at all.
+- Check the selected tool's input schema and required task type. An image task id is valid for
+  `tripo_image_to_3d`; `tripo_animate` needs a rig task, `tripo_mesh_complete` a segment task,
+  and `tripo_smart_segment` takes a file token, URL or local path, not a task id.
 
 ## Models
 
@@ -60,8 +60,9 @@ tools skip the prompt).
 | v3.0, v2.5 | reproducing old work only | v2.5 has no `geometry_quality`, `quad`, `smart_low_poly`, `generate_parts`, `auto_size`, `compress` (removed with a note) |
 
 Website names map to these rows: H3.1 → `v3.1`, P1.0 → `P1`, P2.0 → `P2`. When `model` is omitted
-the server routes as described in the skill and names its choice in `notes`; image and multiview
-tools need an explicit `model: "P2"` for game use. Confirm the model before spending.
+the server routes as described in the skill and names its choice in `notes`. An explicit user model
+or `default_model` setting takes priority; when neither selects a model, image and multiview tools
+need an explicit `model: "P2"` to use the recommended game model. Confirm before spending.
 
 ## Generation parameters
 
@@ -128,7 +129,9 @@ Ask for v1.0 up front when the user wants dances, greetings or sports clips.
 - Image models: `seedream_v4` (text default, not for editing), `seedream_v5` (editing default),
   `banana`, `banana_pro`, `banana2`, `chat_image_2`, `chat_image_2.5_flare` (faster),
   `chat_image_2.5_sunburst` (keeps untouched regions). `chat_image_1` is retired and
-  `chat_image_1.5` retires on 2026-12-01. `quality` applies to `chat_image_2` and the 2.5 models,
+  `chat_image_1.5` retires on 2026-12-01 and remains available before then when supported by the
+  current schema. Never silently replace an explicitly requested paid image model; explain any
+  retirement or incompatibility and ask the user to choose. `quality` applies to `chat_image_2` and the 2.5 models,
   `background` to the 2.5 models only; `aspect_ratio` to banana models; `watermark` to seedream.
 - `size` (default 2048x2048; billed by tier) depends on the model: `banana` fixed sizes only
   (1024x1024, 832x1248, 1248x832, 864x1184, 1184x864, 896x1152, 1152x896, 768x1344, 1344x768,
@@ -156,8 +159,9 @@ Ask for v1.0 up front when the user wants dances, greetings or sports clips.
 ## Prices
 
 Official list prices from the Tripo pricing page (developers.tripo3d.ai/pricing), checked on
-2026-10-30, so a cost can be quoted before a run. Prices
-change; the authoritative number is `credits_consumed` on the result and `tripo_usage` afterwards.
+2026-10-30. These international list prices are estimates, not live quotes; identify the source,
+region and date, and mark an unavailable estimate "not estimated". Prices change; the authoritative
+number is `credits_consumed` on the result and `tripo_usage` afterwards.
 
 | operation | credits |
 |---|---|

@@ -100,10 +100,10 @@ first paid call.
 
 | Goal | Chain |
 |---|---|
-| Model from text | concept image first: `tripo_generate_image` → show it → once the user wants the model, `tripo_image_to_3d` with the image task_id → wait → download |
+| Model from text | `tripo_text_to_3d` → `tripo_task_wait` → `tripo_download` |
+| Optional concept image | `tripo_generate_image` → show it → once the user wants the model, `tripo_image_to_3d` with the image task_id → wait → download |
 | Model from a photo | `tripo_image_to_3d` (URL, file_token or absolute local path) → wait → download |
 | Model from 2–4 views | `tripo_multiview_to_3d` (`front` + at least one more) → wait → download |
-| Straight from text (the user skips the image) | `tripo_text_to_3d` → `tripo_task_wait` → `tripo_download` |
 | Rigged + animated character | T-pose model → `tripo_rig_check` (free) → `tripo_rig` → `tripo_animate` |
 | Playable character (Game Studio) | the chain above with `animate_in_place: true` → play it in the Desktop card, as a web game or in an engine: `tripo-game-asset` skill |
 | Another file type | `tripo_convert` with `format` → wait → download |
@@ -114,24 +114,29 @@ first paid call.
 ## Procedure
 
 1. **Plan, then confirm.** Before the first call of any workflow that creates tasks, call
-   `tripo_plan` with every intended step (tool, purpose, key params; for a 3D generation step
-   also its options as `generation`, including the exact `prompt` for text-to-3D). It is
-   read-only and free, and returns each generation step's resolved `model` and, for v3.1/P2,
-   its list price as `cost_estimate`.
-   - A model asked for in words only (no image, task id or model file) starts with a concept
-     image. Plan the image step, then ask with `clarify`: three image models first and, as the
-     last choice, skipping the image for 3D straight from text with the model [Models](#models)
-     picks, for example "seedream_v4 · about 5 credits", "banana2 · about 10 credits",
-     "banana_pro · about 15 credits", "Skip the image: 3D from text, v3.1 textured · about 20
-     credits". A skip pick runs `tripo_text_to_3d` with that model. After an image pick, run it,
-     show the image (step 8) and end the reply by offering a 3D model from it with the image-to-3D
-     choices and their credits. Plan and run `tripo_image_to_3d` with the image task_id only when
-     the user wants it; a reply naming an offered choice is the pick.
+   `tripo_plan` with every intended step (tool, purpose and key params). Only for
+   `tripo_text_to_3d`, `tripo_image_to_3d` and `tripo_multiview_to_3d`, also pass their options
+   as structured `generation`; include only fields accepted by the plan's `generation` schema,
+   and text-to-3D needs its exact `prompt`. Validate the full request, including image inputs and
+   other options, against the selected tool's own schema and, when supported, its `dry_run`.
+   Do not pass `generation`
+   for `tripo_image_to_splat`, image generation or processing tools; still include their steps,
+   billing and any unavailable estimate in the plan for confirmation. The plan is read-only and
+   free; for the three model-generation tools it resolves `model` and, for v3.1/P2, a list price
+   as `cost_estimate`.
+   - A model asked for in words can go directly through `tripo_text_to_3d`. A concept image is an
+     optional paid route when the user asks for one or wants to review a design first. Plan and
+     confirm its image step before creating it; image models include "seedream_v4 · about 5 credits",
+     "banana2 · about 10 credits", "banana_pro · about 15 credits". Show the image (step 8), then
+     plan and confirm `tripo_image_to_3d` with its task_id only when the user wants the model.
    - When a step has a choice that sets the price (the image model, the 3D `model` unless the
      `default_model` setting names it ([Models](#models)), texture quality, which clips), ask
      with the `clarify` tool: one choice per option naming it and its approximate credits from
      [tools](references/tools.md) § Prices, at most four, the one [Models](#models) picks first
-     (the UI marks the first "Recommended" and adds "Other"). For a model from an image: "v3.1,
+     (the UI marks the first "Recommended" and adds "Other"). Static prices are dated
+     international list-price references, not live quotes: name the source, region and date in
+     [tools](references/tools.md), and mark any unavailable estimate "not estimated", never zero.
+     For a model from an image: "v3.1,
      textured · about 30 credits", "P2 · about 110 credits", "P1 · about 50 credits".
    - Otherwise ask with `clarify` too: sum up the returned plan in the question (each billed step,
      the generation `model` and texture options, approximate credits; say "about", the real charge
@@ -141,20 +146,26 @@ first paid call.
    - Without a `clarify` tool, show the plan as a numbered list with the choices and their credits
      and STOP for the reply; a reply with just a number is that choice.
 
-   Re-plan and re-confirm when the goal changes or a failed step needs a different route.
+   Resolve conflicts between the user's explicit requirements and model capabilities before any
+   upload or paid call. Do not silently strip a requirement or switch its model; ask the user to
+   choose a compatible change and re-plan. Re-plan and re-confirm when the goal changes or a failed
+   step needs a different route. A plan is advisory, not a server-enforced budget or authorization.
    Read-only questions (balance, usage, status) need no plan. Hermes' approval prompt is the
    second gate, not the first, and it shows no price.
 2. **Inputs.** Pass public URLs, `file_token`s and task ids directly. A local file goes in as its
    absolute path (`/Users/me/cat.png`, `~/models/chair.glb`); the server uploads it first. Files
    the user attached in chat have a local path in the message: use it. Signed, short-lived or
    region-locked image URLs go through `tripo_upload_image` first (it returns a `file_token`).
-   A successful task id is a valid `input` for every processing tool: never re-upload what Tripo
-   already has.
+   Reuse a successful task id when the selected tool accepts that task type. `tripo_animate`
+   needs a rig task, `tripo_mesh_complete` needs a segment task, and `tripo_smart_segment` takes
+   a file token, URL or local path, not a task id; see [tools](references/tools.md) § Inputs.
 3. **Submit once.** Every create returns `{task_id, status: "queued", next, notes}` immediately.
    Relay `notes`: they say which model was chosen automatically and which parameters were removed
-   or adjusted. When unsure about a generation request, run it with `dry_run: true` first (no task,
-   no credits) and read `model`, `cost_estimate`, `payload` and `notes`. Keep every task_id for the final credit report.
-   PBR is opt-in: send `pbr: false` on every generation and `tripo_texture` call unless the user
+   or adjusted. The three model-generation tools named in step 1 support `dry_run: true` (no task,
+   no credits): use it when unsure and read `model`, `cost_estimate`, `payload` and `notes`.
+   Do not send `dry_run` to `tripo_image_to_splat` or other tools whose schema lacks it. Keep every
+   task_id for the final credit report. PBR is opt-in: send `pbr: false` on those three
+   model-generation tools and `tripo_texture` unless the user
    explicitly asks for PBR (for example "with PBR" or "PBR materials"); only then send
    `pbr: true`, which also forces `texture: true`. PBR can still be added later: when the user asks
    for it after a model is already generated, do not regenerate. Call `tripo_texture` with that
@@ -176,9 +187,10 @@ first paid call.
      terminal, and never write your own sleep loop.
    - `failed` / `banned`: relay `failure_reason` and `error_code`; credits are refunded
      automatically. Never re-roll a disappointing result on your own: show it and ask.
-5. **Never re-create on doubt.** An error marked "submission uncertain" (network failure while
-   creating) means the task may exist with credits frozen. Check `tripo_balance` (`frozen`) and
-   `tripo_usage`, tell the user, and resubmit only with their yes.
+5. **Never re-create on doubt.** A create timeout or an error marked "submission uncertain", even
+   without a task_id, means the task may exist with credits frozen. Do not automatically retry.
+   Check `tripo_balance` (`frozen`) and recent `tripo_usage`, tell the user what is known, and
+   resubmit only with their explicit yes. `tripo_task_list` requires known task ids.
 6. **Download** with `tripo_download` (free, asks for approval): it fetches fresh links itself and
    saves the model, `preview.png` and `task.json`, returning absolute paths. Pass an absolute
    `output_dir` when the user names a folder or the project needs the file; without it files land
@@ -202,17 +214,19 @@ first paid call.
 
 ## Models
 
-An explicit `model` always wins. Before planning a 3D generation, run
+An explicit `model` always wins. Before planning text, image or multiview to a 3D model, run
 `hermes config get plugins.entries.tripo.settings.default_model` ("not set", `ask` or unreadable:
-ask as in Procedure step 1). `v3.1` or `P2` is then the `model` of every 3D generation without the
-model question, unless the user names another model or asks for something only another model
-offers; the plan still names it and its credits for the user's yes.
+ask as in Procedure step 1). `v3.1` or `P2` is then the `model` of those three tools without the
+model question, unless the user names another model; the plan still names it and its credits for
+the user's yes. When the selected model cannot meet an explicit requirement, ask the user to choose
+a compatible model or change the requirement; never silently override an explicit model or setting.
 When `model` is omitted, the server picks one and says why in
 `notes`: P2 for game, real-time, editable, low-poly or quad requests and for a face budget P2
 supports (48–50000 triangles, 48–25000 quads); v3.1 for dense geometry, v3-only options
 (`geometry_quality`, `smart_low_poly`, `generate_parts`), budgets outside P2's range and anything
-unspecified. Image and multiview tools have no prompt to read, so set `model: "P2"` yourself when
-the user's goal is a game or real-time asset. P2 is the default P-series model; P1 only when the
+unspecified. When neither the user nor `default_model` selects a model, image and multiview tools
+have no prompt to read, so recommend `model: "P2"` for game or real-time assets and confirm it.
+P2 is the default P-series model; P1 only when the
 user names it or picks it as the lower-cost option;
 v3.0 and v2.5 only to reproduce old work. Visual quality or texture quality never picks a geometry
 model. Confirm the model before spending (the `clarify` choice in Procedure step 1, this pick
@@ -235,8 +249,10 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
   has one file per view in `files`). Desktop shows it in the chat with a download button. Say the
   credits it cost and the image size.
   The card's **Next** menu sends a message about that task. A fixed-price follow-up ends with
-  "This button message is my confirmation of the N-credit cost.": that sentence is the user's
-  confirmation of the cost, but still ask any choice the message asks for. A message without it
+  "This button message is my confirmation of the N-credit cost.": that sentence confirms only
+  that stated amount and the unchanged action. Check the applicable estimate and its source,
+  region and date; if the amount or action changes, or the cost is now unknown, re-plan and ask
+  for confirmation of the new amount or uncertainty. Still ask any choice the message asks for. A message without it
   (a model, quality or clip choice sets the price) gets the `clarify` choice of Procedure step 1.
   An animated model's card also has a **Play** button: the user moves the character with the
   keyboard right in the card (Game Studio in the `tripo-game-asset` skill).

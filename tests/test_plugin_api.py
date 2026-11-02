@@ -461,6 +461,10 @@ def test_actions_offer_each_task_types_follow_ups_with_their_credits(api, fake):
         fake.api("GET", f"/v3/tasks/{task_id}", _task(fake, task_id, type_=type_, output=output))
         (row,) = api.actions(task_id)["actions"]
         assert (row["id"], row["choice"]) == ("make3d", True) and tool in row["message"] and "P2 110" in row["message"]
+        assert "Respect a model I explicitly requested" in row["message"]
+        assert "otherwise use my default_model setting" in row["message"]
+        assert "Only if neither selects a model" in row["message"]
+        assert "plan and show the selected model and cost, then wait for my confirmation" in row["message"]
     fake.api("GET", f"/v3/tasks/{_C}", _task(fake, _C, type_="animate_rig"))
     rows = {r["id"]: r for r in api.actions(_C)["actions"]}
     assert list(rows) == ["animate", "playable"] and rows["playable"]["cost"] == 10

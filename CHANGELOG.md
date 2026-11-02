@@ -13,23 +13,28 @@ First version.
   the server's rules: plan and confirm before spending, poll until done, report the credits used,
   and deliver files per surface (Desktop cards, `MEDIA:` attachments, plain paths). Choices, image
   models included, come with their credits through the `clarify` tool (the recommended one first);
-  generated images show in Desktop chats with `MEDIA:` lines; a card button's message counts as the
-  confirmation of its stated cost; chat apps get numbered next steps with credits. On Desktop a
+  generated images show in Desktop chats with `MEDIA:` lines; a card button confirms only its stated
+  cost and unchanged action, with a fresh confirmation if either changes or cost is unknown; chat
+  apps get numbered next steps with credits. On Desktop a
   model's card goes out right after the create instead of after waiting and downloading. When the
   Tripo tools did not load, the agent stops and asks for a gateway restart instead of turning to
   another Tripo server. Asking Tripo for an image is in scope on its own, not only as part of a 3D
-  job. A model asked for in words starts with a choice of image models for a concept image, plus a
-  last choice that skips the image and goes straight to 3D; after an image, 3D follows only when the
-  user wants it. Every confirmation is a `clarify` choice, and the pick runs the call right away, so
+  job. A model asked for in words can be made directly; a concept image is an optional paid route,
+  and after an image, 3D follows only when the user wants it. Every confirmation is a `clarify`
+  choice, and the pick runs the call right away, so
   Hermes' approval prompt follows instead of a second question in text. Asked what Tripo can do, the
   agent answers from the skill's tool list instead of searching the web.
 - PBR is opt-in: tripo-cli 0.9.0 leaves `pbr` off when it is omitted, and the skills send
-  `pbr: false` on every generation and `tripo_texture` call unless the user explicitly asks for PBR;
+  `pbr: false` on text, image or multiview-to-3D model generation and `tripo_texture` calls unless the user explicitly asks for PBR;
   the PC/console hero recipe follows it. The tool snapshot carries the new `pbr` descriptions.
 - Adding PBR to a model that is already generated re-textures its task with `tripo_texture`
   (`pbr: true`) instead of regenerating it, so only the texture step is billed.
 - Within the P series the default is P2: the model choice lists v3.1, P2, then P1, and P1 is used
   only when the user names it or picks it as the lower-cost option.
+- Respect the user's explicit model and `default_model` before recommendations; resolve parameter
+  conflicts before paid calls, use each tool's required input, and do not retry an uncertain create.
+- Image and multiview card actions respect the user's model or `default_model`, while Next and
+  Download display dated international price estimates rather than implying live quotes.
 - Hermes Desktop half, following the Meshy plugin's flow: next steps from the card, a gallery with
   what made each task, and the chat it came from. A credit chip shows a running task's progress.
 - `::tripo-model` 3D cards: task progress with Tripo's stage (modelling, texturing, rigging…) beside

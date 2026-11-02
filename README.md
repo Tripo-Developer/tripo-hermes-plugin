@@ -203,7 +203,8 @@ you get, rendered with stock three.js:
 
 The renderer never reads files or holds the key. `dashboard/plugin_api.py` (mounted at
 `/api/plugins/tripo/` once the plugin is enabled) answers the viewer: the balance and recent tasks
-from Tripo's API, the follow-ups and their prices from the plugin's own price table (it never starts
+from Tripo's API, the follow-ups and estimated prices from the international Tripo list checked on
+2026-10-30 (not live quotes; it never starts
 a task), model and image bytes from the plugin's data folder or your home folder only (the viewer's
 model formats, an OBJ's `.mtl` and images, up to 128 MB, symlinks resolved first), and downloads of
 task results from Tripo's result storage only.

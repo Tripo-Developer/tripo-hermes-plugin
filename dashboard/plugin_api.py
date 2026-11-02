@@ -581,7 +581,9 @@ def save(body: dict):
 # route here spends credits. Credits are the list prices of skills/tripo-3d/references/tools.md § Prices; the chat-app
 # list in references/messaging.md § Next steps names the same steps (tests/test_plugin_api.py keeps them equal).
 _CONFIRM = "This button message is my confirmation of the {cost}-credit cost."
-_TO_3D = "First ask me the model with clarify, one choice per model with its credits: v3.1 textured 30, P2 110, P1 50."
+_TO_3D = ("Respect a model I explicitly requested; otherwise use my default_model setting. Only if neither selects a "
+          "model, ask me with clarify to choose v3.1, P2 or P1, with their estimated credits (v3.1 textured 30, "
+          "P2 110, P1 50). In every case, plan and show the selected model and cost, then wait for my confirmation.")
 _TIERS = "the texture quality with clarify, one choice per tier with its credits: standard 10, detailed 20, extreme 30."
 _STUDIO = "Follow the tripo-game-asset skill's Game Studio steps."
 _ACTIONS = (

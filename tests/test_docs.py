@@ -178,15 +178,46 @@ def test_capability_questions_are_answered_from_the_skill_not_the_web():
     assert "No web search and no loading of every tool schema for that" in when
 
 
-def test_a_model_from_words_starts_with_a_concept_image():
+def test_text_to_3d_is_direct_and_a_concept_image_is_optional_and_confirmed():
     flat = _flat(MAIN_SKILL)
-    assert "A model asked for in words only (no image, task id or model file) starts with a concept image" in flat
-    assert "as the last choice, skipping the image for 3D straight from text" in flat
-    assert "A skip pick runs `tripo_text_to_3d` with that model" in flat
+    assert "A model asked for in words can go directly through `tripo_text_to_3d`" in flat
+    assert "A concept image is an optional paid route" in flat
+    assert "confirm its image step before creating it" in flat
+    assert "plan and confirm `tripo_image_to_3d` with its task_id only when the user wants the model" in flat
     assert '"seedream_v4 · about 5 credits", "banana2 · about 10 credits", "banana_pro · about 15 credits"' in flat
     assert "Images get the same question unless the user names a model" in flat
     game = _flat(SKILL_DOCS["skills/tripo-game-asset/SKILL.md"])
-    assert "starts with a concept image (tripo-3d, Procedure step 1)" in game
+    assert "a concept image is optional and requires its own confirmed paid step" in game
+
+
+def test_model_priority_task_inputs_and_uncertain_submissions():
+    main = _flat(MAIN_SKILL)
+    game = _flat(SKILL_DOCS["skills/tripo-game-asset/SKILL.md"])
+    workflows = _flat(SKILL_DOCS["skills/tripo-3d/references/workflows.md"])
+    assert "The user's explicit model wins, followed by their `default_model` setting" in game
+    assert "P2 calls below are examples, not overrides" in game
+    assert "never silently override an explicit model or setting" in main
+    assert "`tripo_animate` needs a rig task" in main
+    assert "`tripo_mesh_complete` needs a segment task" in main
+    assert "`tripo_smart_segment` takes a file token, URL or local path, not a task id" in main
+    assert "even without a task_id, means the task may exist" in main
+    assert "Do not automatically retry" in main
+    assert "if the amount or action changes, or the cost is now unknown, re-plan" in main
+    assert "each with the ORIGINAL generation task as `input`" in workflows
+
+
+def test_generation_and_dry_run_are_limited_to_model_generation_tools():
+    main = _flat(MAIN_SKILL)
+    assert "Only for `tripo_text_to_3d`, `tripo_image_to_3d` and `tripo_multiview_to_3d`" in main
+    assert "Do not pass `generation` for `tripo_image_to_splat`" in main
+    assert "Do not send `dry_run` to `tripo_image_to_splat`" in main
+    assert "include only fields accepted by the plan's `generation` schema" in main
+    assert "against the selected tool's own schema and, when supported, its `dry_run`" in main
+    for tool in TOOLS:
+        if tool["name"] in {"tripo_text_to_3d", "tripo_image_to_3d", "tripo_multiview_to_3d"}:
+            assert "dry_run" in tool["inputSchema"]["properties"], tool["name"]
+        if tool["name"] == "tripo_image_to_splat":
+            assert "dry_run" not in tool["inputSchema"]["properties"]
 
 
 def test_the_clarify_pick_runs_the_call_without_a_second_question():

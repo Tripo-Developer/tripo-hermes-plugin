@@ -13,12 +13,13 @@ metadata:
 Recipes on top of the `tripo-3d` skill. Read that skill first: it covers finding the tools
 (`tool_search`, then `tool_call` with names like `mcp__tripo__tripo_text_to_3d`), approval
 prompts, `tripo_plan` before spending, waiting for tasks, credits and the full parameter reference.
-A request in words only still starts with a concept image (tripo-3d, Procedure step 1): the
-generation parameters below work the same on `tripo_image_to_3d`, and `tripo_text_to_3d` is for a
-user who skips the image.
-Every arrow below is a billed task followed by waiting until it finishes; the `input` of each step
-is the previous step's task_id. Every generation and `tripo_texture` call sends `pbr: false` unless
-the user explicitly asks for PBR; a game engine or "high quality" does not imply it.
+A request in words can use `tripo_text_to_3d` directly; a concept image is optional and requires
+its own confirmed paid step (tripo-3d, Procedure step 1). The generation parameters below also
+apply to `tripo_image_to_3d`.
+Wait for each task before a dependent step, and check each tool's billing and input schema:
+`tripo_rig_check` is free and the rig uses the original model, while animation uses the rig task.
+Each text, image or multiview-to-3D model generation and `tripo_texture` call sends `pbr: false`
+unless the user explicitly asks for PBR; a game engine or "high quality" does not imply it.
 
 The point of these recipes is that assets land in the project's own folders: after the final step
 call `tripo_download` with `output_dir` set to the absolute path of the project's art folder
@@ -27,12 +28,13 @@ call `tripo_download` with `output_dir` set to the absolute path of the project'
 
 ## Pick a budget first
 
-Set `model: "P2"` explicitly for game and real-time topology (image and multiview tools never pick
+The user's explicit model wins, followed by their `default_model` setting. When neither selects a
+model, recommend `model: "P2"` for game and real-time topology (image and multiview tools never pick
 it on their own); P1 only when the user names it or picks it as the lower-cost option; v3.1 for
-film, render or print.
+film, render or print. If the selected model cannot meet the user's requirements, ask before
+changing either the model or requirements. The P2 calls below are examples, not overrides.
 Confirm the model, texture options and estimated cost with `tripo_plan`, offering a model choice
-with `clarify`, one option per model with its credits, the pick above first (tripo-3d, Procedure
-step 1); re-confirm any paid model change.
+with `clarify` when needed (tripo-3d, Procedure step 1); re-confirm any paid model change.
 
 | target | generation call | export |
 |---|---|---|
@@ -42,8 +44,9 @@ step 1); re-confirm any paid model change.
 
 Two budget choices the defaults do not make for you:
 
-- **Quads at low poly**: P1 does not support `quad` (the tool strips it); use `model: "P2", quad: true` (48–25000 quads, output
-  is FBX) or v3.1 with `smart_low_poly: true, quad: true` (`face_limit` 500–10000).
+- **Quads at low poly**: P1 does not support `quad` (the tool strips it). Before submitting, ask
+  whether to change to `model: "P2", quad: true` (48–25000 quads, output is FBX), use v3.1 with
+  `smart_low_poly: true, quad: true` (`face_limit` 500–10000), or drop the quad requirement.
 - **v3.1 quality under a face cap**: set `model: "v3.1"` explicitly; a face budget alone in P2's
   range routes to P2.
 
@@ -82,7 +85,7 @@ upper bound.
 1. **T-pose source.** Prompt for it (`"a knight in full armor, T-pose, standing straight"`) or turn
    a character image into one with `tripo_generate_image` `{input: <image>, template: "t_pose"}`:
    rigging quality depends heavily on it.
-2. `tripo_text_to_3d` / `tripo_image_to_3d` with `model: "P2"`, `pbr: false` → the character model task.
+2. `tripo_text_to_3d` / `tripo_image_to_3d` with the confirmed model, `pbr: false` → the character model task.
 3. `tripo_rig_check` `{input: <model task>}`: free. It gates the chain: not riggable → stop before
    spending on rigging. Read the recommended `rig_type` (`biped`, `quadruped`, `hexapod`,
    `octopod`, `avian`, `serpentine`, `aquatic`).
