@@ -39,7 +39,7 @@ report the credits used.
 ## Prerequisites
 
 - The `tripo` plugin installed and enabled, then a NEW Hermes session so the MCP tools load.
-  The first start downloads Hermes' managed Node.js and the pinned tripo-cli; when the tools are
+  The first start downloads Hermes' managed Node.js and the latest tripo-cli; when the tools are
   missing, follow How to Run below.
 - A Tripo API key from an international Tripo account, created at developers.tripo3d.ai/en/keys.
   It goes into Hermes Desktop **Settings → Plugins → Tripo**, or `hermes config set TRIPO_API_KEY tsk_...`
@@ -58,7 +58,7 @@ names (`tripo_text_to_3d`).
 
 Never run `npx tripo-cli`, `hermes mcp add tripo` or any other setup step yourself: the plugin
 already registers the server, and a second `mcp_servers.tripo` entry in `config.yaml` replaces the
-plugin's pinned one.
+plugin's own.
 
 If `tool_search` finds no `mcp__tripo__` tool, stop and tell the user the Tripo tools did not load
 in this session. The plugin must be enabled for the agent (`hermes plugins enable tripo`, or its
@@ -220,12 +220,10 @@ ask as in Procedure step 1). `v3.1` or `P2` is then the `model` of those three t
 model question, unless the user names another model; the plan still names it and its credits for
 the user's yes. When the selected model cannot meet an explicit requirement, ask the user to choose
 a compatible model or change the requirement; never silently override an explicit model or setting.
-When `model` is omitted, the server picks one and says why in
-`notes`: P2 for game, real-time, editable, low-poly or quad requests and for a face budget P2
-supports (48–50000 triangles, 48–25000 quads); v3.1 for dense geometry, v3-only options
-(`geometry_quality`, `smart_low_poly`, `generate_parts`), budgets outside P2's range and anything
-unspecified. When neither the user nor `default_model` selects a model, image and multiview tools
-have no prompt to read, so recommend `model: "P2"` for game or real-time assets and confirm it.
+When `model` is omitted, the server uses P2; the prompt and other
+parameters never pick another model. On P2, v3-only options (`geometry_quality`, `smart_low_poly`,
+`generate_parts`) are removed with a note and a face budget outside 48–50000 triangles (48–25000
+quads) is rejected, so set `model: "v3.1"` explicitly when those are needed.
 P2 is the default P-series model; P1 only when the
 user names it or picks it as the lower-cost option;
 v3.0 and v2.5 only to reproduce old work. Visual quality or texture quality never picks a geometry

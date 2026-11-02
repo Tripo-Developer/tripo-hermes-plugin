@@ -1,5 +1,5 @@
 {
-  "tripo_cli": "0.9.0",
+  "tripo_cli": "0.10.0",
   "toolset": "full",
   "tools": [
     {
@@ -25,11 +25,11 @@
                   "enum": [
                     "tripo_plan",
                     "tripo_text_to_3d",
+                    "tripo_upload_image",
+                    "tripo_import_model",
                     "tripo_image_to_3d",
                     "tripo_multiview_to_3d",
                     "tripo_image_to_splat",
-                    "tripo_upload_image",
-                    "tripo_import_model",
                     "tripo_generate_image",
                     "tripo_image_to_multiview",
                     "tripo_edit_multiview",
@@ -37,16 +37,15 @@
                     "tripo_task_wait",
                     "tripo_task_list",
                     "tripo_texture",
+                    "tripo_rig_check",
+                    "tripo_rig",
+                    "tripo_animate",
                     "tripo_convert",
                     "tripo_decimate",
                     "tripo_smart_uv",
                     "tripo_segment",
                     "tripo_mesh_complete",
-                    "tripo_mesh_edit",
                     "tripo_smart_segment",
-                    "tripo_rig_check",
-                    "tripo_rig",
-                    "tripo_animate",
                     "tripo_balance",
                     "tripo_usage",
                     "tripo_download"
@@ -64,35 +63,12 @@
                   "properties": {
                     "model": {
                       "type": "string",
-                      "enum": [
-                        "v3.1",
-                        "v3.1-20260211",
-                        "tripo-v3.1",
-                        "H3.1",
-                        "P1",
-                        "P1-20260311",
-                        "p1",
-                        "tripo-p1",
-                        "P1.0",
-                        "v3.0",
-                        "v3.0-20250812",
-                        "tripo-v3.0",
-                        "H3.0",
-                        "v2.5",
-                        "v2.5-20250123",
-                        "tripo-v2.5",
-                        "H2.5",
-                        "P2",
-                        "P2-20260801",
-                        "p2",
-                        "tripo-p2",
-                        "P2.0"
-                      ],
-                      "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+                      "minLength": 1,
+                      "description": "P2-20260801 (P2, P2.0) is the default 3D generation model (48–50000 tri / 48–25000 quad); v3.1-20260211 (v3.1, H3.1) is the H-series flagship for dense geometry and v3-only options; P1-20260311 (P1, P1.0) is an explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) are legacy. Full version IDs and short names are accepted. An explicit model wins; prompt and parameters do not select another model. Explicitly pass the confirmed model from tripo_plan to the generation call. Unsupported parameters are removed with notes, and P2 face budgets outside its range are rejected; choose v3.1 explicitly when its capabilities are required. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated)."
                     },
                     "texture": {
                       "type": "boolean",
-                      "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
+                      "description": "generate textures (default true); false = bare geometry"
                     },
                     "pbr": {
                       "type": "boolean",
@@ -135,11 +111,11 @@
                     "face_limit": {
                       "type": "integer",
                       "exclusiveMinimum": 0,
-                      "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
+                      "description": "max face count; P2 accepts 48–50000 triangles or 48–25000 quads; an out-of-range P2 budget is rejected, so choose a compatible model explicitly"
                     },
                     "quad": {
                       "type": "boolean",
-                      "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+                      "description": "quad topology (P2 or v3.x; output is FBX); does not change the selected model"
                     },
                     "smart_low_poly": {
                       "type": "boolean",
@@ -193,7 +169,7 @@
                     }
                   },
                   "additionalProperties": false,
-                  "description": "3D generation model options only; text-to-3D also requires its exact prompt. Not an executable request; use dry_run for the full payload including image references."
+                  "description": "3D generation model options; text-to-3D requires its exact prompt. Image/multiview prompt is retained for compatibility but does not select a model and is not sent upstream. Not an executable request; use dry_run for the full payload including image references."
                 },
                 "params": {
                   "type": "string",
@@ -215,6 +191,84 @@
         "required": [
           "goal",
           "steps"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "step": {
+                  "type": "integer"
+                },
+                "tool": {
+                  "type": "string"
+                },
+                "purpose": {
+                  "type": "string"
+                },
+                "params": {
+                  "type": "string"
+                },
+                "billed": {
+                  "type": "boolean"
+                },
+                "billing_note": {
+                  "type": "string"
+                },
+                "model": {
+                  "type": "string"
+                },
+                "cost_estimate": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "step",
+                "tool",
+                "purpose",
+                "billed",
+                "model",
+                "cost_estimate",
+                "notes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "billed_steps": {
+            "type": "integer"
+          },
+          "cost_estimate": {
+            "type": "string"
+          },
+          "authorization": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "steps",
+          "billed_steps",
+          "cost_estimate",
+          "authorization",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -249,35 +303,12 @@
           },
           "model": {
             "type": "string",
-            "enum": [
-              "v3.1",
-              "v3.1-20260211",
-              "tripo-v3.1",
-              "H3.1",
-              "P1",
-              "P1-20260311",
-              "p1",
-              "tripo-p1",
-              "P1.0",
-              "v3.0",
-              "v3.0-20250812",
-              "tripo-v3.0",
-              "H3.0",
-              "v2.5",
-              "v2.5-20250123",
-              "tripo-v2.5",
-              "H2.5",
-              "P2",
-              "P2-20260801",
-              "p2",
-              "tripo-p2",
-              "P2.0"
-            ],
-            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "minLength": 1,
+            "description": "P2-20260801 (P2, P2.0) is the default 3D generation model (48–50000 tri / 48–25000 quad); v3.1-20260211 (v3.1, H3.1) is the H-series flagship for dense geometry and v3-only options; P1-20260311 (P1, P1.0) is an explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) are legacy. Full version IDs and short names are accepted. An explicit model wins; prompt and parameters do not select another model. Explicitly pass the confirmed model from tripo_plan to the generation call. Unsupported parameters are removed with notes, and P2 face budgets outside its range are rejected; choose v3.1 explicitly when its capabilities are required. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated)."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
+            "description": "generate textures (default true); false = bare geometry"
           },
           "pbr": {
             "type": "boolean",
@@ -320,11 +351,11 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
+            "description": "max face count; P2 accepts 48–50000 triangles or 48–25000 quads; an out-of-range P2 budget is rejected, so choose a compatible model explicitly"
           },
           "quad": {
             "type": "boolean",
-            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+            "description": "quad topology (P2 or v3.x; output is FBX); does not change the selected model"
           },
           "smart_low_poly": {
             "type": "boolean",
@@ -378,6 +409,56 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "model_name": {
+            "type": "string"
+          },
+          "cost_estimate": {
+            "type": "string"
+          },
+          "authorization": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -404,6 +485,31 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "file_token": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_token",
+          "mime",
+          "bytes",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -414,18 +520,51 @@
     {
       "name": "tripo_import_model",
       "title": "Import model file",
-      "description": "Import an existing 3D model (GLB/GLTF/FBX/OBJ/STL, ≤150MB) into Tripo as a task, so it gets a preview and a task_id reusable across texture/convert/rig/segment steps without re-uploading. input is a public model file URL, a file_token, or an absolute local model file path (uploaded first).",
+      "description": "Import an existing 3D model (GLB/GLTF/FBX/OBJ/STL, ≤150MB) into Tripo as a task, so it gets a preview and a task_id reusable across texture/convert/rig/segment steps without re-uploading. input is a public model file URL, a file_token, or an existing local model file path (uploaded first).",
       "inputSchema": {
         "type": "object",
         "properties": {
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model file_token or public model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model file_token or public model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           }
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -447,7 +586,12 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token / task_id; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 1024,
+            "description": "optional compatibility field; does not select the model and is not sent to the image-to-model API"
           },
           "enable_image_autofix": {
             "type": "boolean",
@@ -471,35 +615,12 @@
           },
           "model": {
             "type": "string",
-            "enum": [
-              "v3.1",
-              "v3.1-20260211",
-              "tripo-v3.1",
-              "H3.1",
-              "P1",
-              "P1-20260311",
-              "p1",
-              "tripo-p1",
-              "P1.0",
-              "v3.0",
-              "v3.0-20250812",
-              "tripo-v3.0",
-              "H3.0",
-              "v2.5",
-              "v2.5-20250123",
-              "tripo-v2.5",
-              "H2.5",
-              "P2",
-              "P2-20260801",
-              "p2",
-              "tripo-p2",
-              "P2.0"
-            ],
-            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "minLength": 1,
+            "description": "P2-20260801 (P2, P2.0) is the default 3D generation model (48–50000 tri / 48–25000 quad); v3.1-20260211 (v3.1, H3.1) is the H-series flagship for dense geometry and v3-only options; P1-20260311 (P1, P1.0) is an explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) are legacy. Full version IDs and short names are accepted. An explicit model wins; prompt and parameters do not select another model. Explicitly pass the confirmed model from tripo_plan to the generation call. Unsupported parameters are removed with notes, and P2 face budgets outside its range are rejected; choose v3.1 explicitly when its capabilities are required. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated)."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
+            "description": "generate textures (default true); false = bare geometry"
           },
           "pbr": {
             "type": "boolean",
@@ -542,11 +663,11 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
+            "description": "max face count; P2 accepts 48–50000 triangles or 48–25000 quads; an out-of-range P2 budget is rejected, so choose a compatible model explicitly"
           },
           "quad": {
             "type": "boolean",
-            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+            "description": "quad topology (P2 or v3.x; output is FBX); does not change the selected model"
           },
           "smart_low_poly": {
             "type": "boolean",
@@ -600,6 +721,56 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "model_name": {
+            "type": "string"
+          },
+          "cost_estimate": {
+            "type": "string"
+          },
+          "authorization": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -614,25 +785,30 @@
       "inputSchema": {
         "type": "object",
         "properties": {
+          "prompt": {
+            "type": "string",
+            "maxLength": 1024,
+            "description": "optional compatibility field; does not select the model and is not sent to the multiview-to-model API"
+          },
           "front": {
             "type": "string",
             "minLength": 1,
-            "description": "front view (required unless multiview_task_id is set); an absolute local file path also works (uploaded first)"
+            "description": "front view (required unless multiview_task_id is set); an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "left": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "back": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "right": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "multiview_task_id": {
             "type": "string",
@@ -657,35 +833,12 @@
           },
           "model": {
             "type": "string",
-            "enum": [
-              "v3.1",
-              "v3.1-20260211",
-              "tripo-v3.1",
-              "H3.1",
-              "P1",
-              "P1-20260311",
-              "p1",
-              "tripo-p1",
-              "P1.0",
-              "v3.0",
-              "v3.0-20250812",
-              "tripo-v3.0",
-              "H3.0",
-              "v2.5",
-              "v2.5-20250123",
-              "tripo-v2.5",
-              "H2.5",
-              "P2",
-              "P2-20260801",
-              "p2",
-              "tripo-p2",
-              "P2.0"
-            ],
-            "description": "v3.1-20260211 (v3.1, H3.1) = official default flagship (H series), also required for dense geometry and v3-only options; P2-20260801 (P2, P2.0) = P-series topology for real-time, game, editable, low-poly or quad assets (48–50000 tri / 48–25000 quad); P1-20260311 (P1, P1.0) = explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) = legacy, only to reproduce old projects. Full version IDs and short names are accepted. When omitted, dense geometry, v3-only options and face budgets outside P2's range choose v3.1; game/realtime/editable/low-poly/quad requests and P2-range face budgets choose P2; everything else uses v3.1. Visual and texture quality, and platform names such as PC or console, do not choose a geometry model by themselves. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated). Image and multiview tools have no prompt intent, so explicitly set P2 when their known conversational use is game/realtime/editable."
+            "minLength": 1,
+            "description": "P2-20260801 (P2, P2.0) is the default 3D generation model (48–50000 tri / 48–25000 quad); v3.1-20260211 (v3.1, H3.1) is the H-series flagship for dense geometry and v3-only options; P1-20260311 (P1, P1.0) is an explicit lower-cost P-series choice (50–20000 faces); v3.0-20250812 / v2.5-20250123 (H3.0 / H2.5) are legacy. Full version IDs and short names are accepted. An explicit model wins; prompt and parameters do not select another model. Explicitly pass the confirmed model from tripo_plan to the generation call. Unsupported parameters are removed with notes, and P2 face budgets outside its range are rejected; choose v3.1 explicitly when its capabilities are required. P2 lists at 100–130 credits per generation versus 10–50 for v3.1 before add-ons; dry_run and tripo_plan report the list price (P1 and legacy models are not estimated)."
           },
           "texture": {
             "type": "boolean",
-            "description": "generate textures (default true); false = bare geometry, and pbr is then sent as false unless set"
+            "description": "generate textures (default true); false = bare geometry"
           },
           "pbr": {
             "type": "boolean",
@@ -728,11 +881,11 @@
           "face_limit": {
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "max face count; when model is omitted, a budget inside P2's range (48–50000, or 48–25000 with quad) chooses P2 and one outside it chooses v3.1"
+            "description": "max face count; P2 accepts 48–50000 triangles or 48–25000 quads; an out-of-range P2 budget is rejected, so choose a compatible model explicitly"
           },
           "quad": {
             "type": "boolean",
-            "description": "quad topology (P2 or v3.x; output is FBX); automatically chooses P2 unless a v3-only requirement applies"
+            "description": "quad topology (P2 or v3.x; output is FBX); does not change the selected model"
           },
           "smart_low_poly": {
             "type": "boolean",
@@ -783,6 +936,56 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "model_name": {
+            "type": "string"
+          },
+          "cost_estimate": {
+            "type": "string"
+          },
+          "authorization": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -800,7 +1003,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token / task_id; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "model_seed": {
             "type": "integer",
@@ -809,6 +1012,39 @@
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -823,18 +1059,24 @@
     {
       "name": "tripo_generate_image",
       "title": "Generate / edit image",
-      "description": "Tripo image generation for 3D prep: text→image when no input is given, image editing/fusion (image(s)+prompt→image) when input or inputs is set. Templates automate common prep: t_pose (character to T-pose), asset_extraction (text mode), 3d_enhance (image mode), character_completion, variants, figure. Negative prompts go inside prompt after `--no`. The resulting task_id can feed tripo_image_to_3d directly.",
+      "description": "Tripo image generation for 3D prep: text→image when no input is given, image editing/fusion (image(s)+prompt→image) when input or inputs is set. Templates automate common prep: t_pose (character to T-pose), asset_extraction (text mode), 3d_enhance (image mode), character_completion, variants, figure. The resulting task_id can feed tripo_image_to_3d directly.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "prompt": {
             "type": "string",
-            "maxLength": 1024
+            "description": "up to 1800 characters after trimming"
+          },
+          "negative_prompt": {
+            "type": "string"
+          },
+          "image_seed": {
+            "type": "integer"
           },
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "source image URL / file_token / task_id — set to edit an image, omit for text-to-image; an absolute local file path also works (uploaded first)"
+            "description": "source image URL / file_token / task_id — set to edit an image, omit for text-to-image; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "inputs": {
             "type": "array",
@@ -843,7 +1085,7 @@
               "minLength": 1
             },
             "minItems": 1,
-            "description": "several reference images for editing/fusion, referred to as image[1], image[2], … in the prompt; max 4 (seedream) / 10 (banana) / 16 (chat_image); an absolute local file path also works (uploaded first)"
+            "description": "several reference images for editing/fusion, referred to as image[1], image[2], … in the prompt; max 4 (seedream) / 10 (banana) / 16 (chat_image); an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "model": {
             "type": "string",
@@ -918,6 +1160,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -935,11 +1210,44 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "image URL / file_token / task_id; an absolute local file path also works (uploaded first)"
+            "description": "image URL / file_token / task_id; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           }
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -961,7 +1269,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "a successful tripo_image_to_multiview task_id; an absolute local file path also works (uploaded first)"
+            "description": "a successful tripo_image_to_multiview task_id; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "prompts": {
             "type": "array",
@@ -1001,6 +1309,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1026,6 +1367,82 @@
         },
         "required": [
           "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "credits_consumed": {
+            "type": "number"
+          },
+          "estimated_seconds_left": {
+            "type": "number"
+          },
+          "model_url": {
+            "type": "string"
+          },
+          "output_urls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "failure_reason": {},
+          "error_code": {
+            "type": "number"
+          },
+          "next": {
+            "type": "string"
+          },
+          "riggable": {
+            "type": "boolean"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "normalize_scale": {
+            "type": "number"
+          },
+          "raw": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "task_id",
+          "type",
+          "status",
+          "output_urls"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1061,6 +1478,78 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "credits_consumed": {
+            "type": "number"
+          },
+          "estimated_seconds_left": {
+            "type": "number"
+          },
+          "model_url": {
+            "type": "string"
+          },
+          "output_urls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "failure_reason": {},
+          "error_code": {
+            "type": "number"
+          },
+          "next": {
+            "type": "string"
+          },
+          "riggable": {
+            "type": "boolean"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "normalize_scale": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "task_id",
+          "type",
+          "status",
+          "output_urls"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -1091,6 +1580,97 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "progress": {
+                  "type": "number"
+                },
+                "credits_consumed": {
+                  "type": "number"
+                },
+                "estimated_seconds_left": {
+                  "type": "number"
+                },
+                "model_url": {
+                  "type": "string"
+                },
+                "output_urls": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "field",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "note": {
+                  "type": "string"
+                },
+                "failure_reason": {},
+                "error_code": {
+                  "type": "number"
+                },
+                "next": {
+                  "type": "string"
+                },
+                "riggable": {
+                  "type": "boolean"
+                },
+                "rig_type": {
+                  "type": "string"
+                },
+                "normalize_scale": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "task_id",
+                "type",
+                "status",
+                "output_urls"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "missed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tasks",
+          "missed"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -1101,14 +1681,14 @@
     {
       "name": "tripo_texture",
       "title": "Texture / retexture",
-      "description": "Generate or regenerate textures for a model. input accepts a model-producing task_id, a file_token, or a model file URL (glb). Guidance is optional for Tripo-generated models: prompt (+style_image), or image, or images — exactly one. Billed separately.",
+      "description": "Generate or regenerate textures for a model. input accepts a model-producing task_id, a file_token, or a model file URL (glb). Guidance is optional for Tripo-generated models: prompt (+style_image), image, images, or texture_prompt — exactly one. Billed separately.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "texture_quality": {
             "type": "string",
@@ -1151,12 +1731,12 @@
           "style_image": {
             "type": "string",
             "minLength": 1,
-            "description": "style reference image URL / file_token; only together with prompt; an absolute local file path also works (uploaded first)"
+            "description": "style reference image URL / file_token; only together with prompt; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "image": {
             "type": "string",
             "minLength": 1,
-            "description": "single reference image URL / file_token (re-supply the original reference when retexturing a task); an absolute local file path also works (uploaded first)"
+            "description": "single reference image URL / file_token (re-supply the original reference when retexturing a task); an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "images": {
             "type": "array",
@@ -1166,7 +1746,23 @@
             },
             "minItems": 4,
             "maxItems": 4,
-            "description": "exactly 4 reference images in order [front, left, back, right]; an absolute local file path also works (uploaded first)"
+            "description": "exactly 4 reference images in order [front, left, back, right]; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
+          },
+          "texture_prompt": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "image": {},
+              "style_image": {},
+              "images": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "additionalProperties": true,
+            "description": "native texture guidance; view-key images need front and another view, e.g. {\"images\":[{\"front\":\"file_front\"},{\"left\":\"file_left\"}]}; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "texture_seed": {
             "type": "integer"
@@ -1199,6 +1795,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1216,11 +1845,44 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           }
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1235,14 +1897,14 @@
     {
       "name": "tripo_rig",
       "title": "Rig model",
-      "description": "Add an animation skeleton to a model (seven named body types, or others). input accepts a model-producing task_id, a file_token, or a model file URL. Required before tripo_animate. Billed separately. Unless model is set, every body type uses the v3.0 rig (on non-biped body types it matches the v2.5 creature rig at the same price). Set model=v1.0 up front when the user wants humanoid clips beyond the universal presets (dance, greetings, sports… — the 90+ preset:biped:* clips exist only on v1.0 rigs); the result reports the model used and which preset family tripo_animate must use.",
+      "description": "Add an animation skeleton to a model (seven named body types, or others). input accepts a model-producing task_id, a file_token, or a model file URL. Required before tripo_animate. Billed separately. Unless model is set, quadruped uses the v2.5 creature rig and every other body type uses the v3.0 rig (on non-biped body types v3.0 matches v2.5 at the same price). Set model=v1.0 up front when the user wants humanoid clips beyond the universal presets (dance, greetings, sports… — the 90+ preset:biped:* clips exist only on v1.0 rigs); the result reports the model used and which preset family tripo_animate must use.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "rig_type": {
             "type": "string",
@@ -1291,11 +1953,44 @@
               "rig-v2.0",
               "rig-v1.0"
             ],
-            "description": "v3.0-20260909 (v3.0) = recommended humanoid rig, faster and better at the same price, matching v2.5 on other body types; the only model for rig_type=others and the actorcore/unity/unreal/vrm specs. v2.5-20260210 (v2.5) = creature rig for quadruped/hexapod/octopod/avian/serpentine/aquatic. v3.0 and v2.5 share one preset set (generic clips for bipeds, body-type clips for creatures). v1.0-20240301 (v1.0) = legacy humanoid rig and server default, the only one with the 90+ preset:biped:* clips. Defaults to v3.0 for every body type when omitted. The CLI names rig-v3.0 / rig-v2.5 / rig-v1.0 are accepted too (rig-v2.0 = v2.5)"
+            "description": "v3.0-20260909 (v3.0) = recommended humanoid rig, faster and better at the same price, matching v2.5 on other body types; the only model for rig_type=others and the actorcore/unity/unreal/vrm specs. v2.5-20260210 (v2.5) = creature rig for quadruped/hexapod/octopod/avian/serpentine/aquatic. v3.0 and v2.5 share one preset set (generic clips for bipeds, body-type clips for creatures). v1.0-20240301 (v1.0) = legacy humanoid rig and server default, the only one with the 90+ preset:biped:* clips. When omitted, rig_type=quadruped defaults to v2.5 and every other body type to v3.0; an explicit model wins. The CLI names rig-v3.0 / rig-v2.5 / rig-v1.0 are accepted too (rig-v2.0 = v2.5)"
           }
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1310,7 +2005,7 @@
     {
       "name": "tripo_animate",
       "title": "Animate rigged model",
-      "description": "Apply preset animations to a rig task (input must be a successful tripo_rig task_id). Preset names depend on the rig model and body type reported by tripo_rig: v3.0/v2.5 biped rigs (v3.0 is the default rig) take preset:idle, preset:walk, preset:run, preset:dive, preset:climb, preset:jump, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn; v3.0/v2.5 creature rigs take only their body-type preset (preset:quadruped:walk, preset:hexapod:walk, preset:octopod:walk, preset:serpentine:march, preset:aquatic:march; avian and others have none); v1.0 humanoid rigs take only the 90+ preset:biped:* clips (preset:biped:idle, preset:biped:walk, preset:biped:run, preset:biped:jump, preset:biped:dance_01, preset:biped:wave_goodbye_01, …). Billed per animation, max 5.",
+      "description": "Apply preset animations to a rig task (input must be a successful tripo_rig task_id). Preset names depend on the rig model and body type reported by tripo_rig: v3.0/v2.5 biped rigs (v3.0 is the default biped rig) take preset:idle, preset:walk, preset:run, preset:dive, preset:climb, preset:jump, preset:slash, preset:shoot, preset:hurt, preset:fall, preset:turn; v3.0/v2.5 creature rigs take only their body-type preset (preset:quadruped:walk, preset:hexapod:walk, preset:octopod:walk, preset:serpentine:march, preset:aquatic:march; avian and others have none); v1.0 humanoid rigs take only the 90+ preset:biped:* clips (preset:biped:idle, preset:biped:walk, preset:biped:run, preset:biped:jump, preset:biped:dance_01, preset:biped:wave_goodbye_01, …). Billed per animation, max 5.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1321,6 +2016,11 @@
           },
           "bake_animation": {
             "description": "Deprecated and ignored; omit this parameter."
+          },
+          "animation": {
+            "type": "string",
+            "minLength": 1,
+            "description": "one animation preset; use animation or animations, not both"
           },
           "animations": {
             "type": "array",
@@ -1348,8 +2048,40 @@
           }
         },
         "required": [
+          "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
           "task_id",
-          "animations"
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1371,7 +2103,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "format": {
             "type": "string",
@@ -1485,6 +2217,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1502,7 +2267,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "face_limit": {
             "type": "integer",
@@ -1541,6 +2306,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1558,7 +2356,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "bake": {
             "type": "boolean",
@@ -1587,6 +2385,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1604,7 +2435,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+            "description": "model task_id / file_token / model file URL; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "model": {
             "type": "string",
@@ -1629,11 +2460,44 @@
           "ref_image": {
             "type": "string",
             "minLength": 1,
-            "description": "v2.0 only: reference image / segmentation mask (URL or file_token); overrides granularity and connectivity; an absolute local file path also works (uploaded first)"
+            "description": "v2.0 only: reference image / segmentation mask (URL or file_token); overrides granularity and connectivity; an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           }
         },
         "required": [
           "input"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1678,60 +2542,35 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
-      "annotations": {
-        "readOnlyHint": false,
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": true
-      }
-    },
-    {
-      "name": "tripo_mesh_edit",
-      "title": "Edit mesh region (P2)",
-      "description": "Regenerate or refine one region of an existing model with the P2 pipeline (model is fixed to P2-20260801). input accepts a model-producing task_id, a file_token, or a model file URL; bbox is the axis-aligned box in model space that bounds the region to redo. Optional ref_image guides the result semantically. Billed separately; the rest of the mesh is kept.",
-      "inputSchema": {
+      "outputSchema": {
         "type": "object",
         "properties": {
-          "input": {
-            "type": "string",
-            "minLength": 1,
-            "description": "model task_id / file_token / model file URL; an absolute local file path also works (uploaded first)"
+          "task_id": {
+            "type": "string"
           },
-          "bbox": {
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
             "type": "array",
             "items": {
-              "type": "array",
-              "items": {
-                "type": "number"
-              },
-              "minItems": 3,
-              "maxItems": 3
-            },
-            "minItems": 2,
-            "maxItems": 2,
-            "description": "[[x1,y1,z1],[x2,y2,z2]] axis-aligned bounding box in model space, e.g. [[-0.5,-0.5,-0.5],[0.5,0.5,0.5]]"
-          },
-          "face_limit": {
-            "type": "integer",
-            "minimum": 100,
-            "description": "max face count of the result (≥100; adaptive when omitted)"
-          },
-          "ref_image": {
-            "type": "string",
-            "minLength": 1,
-            "description": "reference image URL or file_token for semantic guidance; an absolute local file path also works (uploaded first)"
-          },
-          "compress": {
-            "type": "string",
-            "enum": [
-              "geometry"
-            ],
-            "description": "meshopt geometry compression for a smaller file"
+              "type": "string"
+            }
           }
         },
         "required": [
-          "input",
-          "bbox"
+          "task_id",
+          "status",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1753,7 +2592,7 @@
           "input": {
             "type": "string",
             "minLength": 1,
-            "description": "file_token or URL (GLB model or image; NOT a task_id); an absolute local file path also works (uploaded first)"
+            "description": "file_token or URL (GLB model or image; NOT a task_id); an existing relative, absolute, or ~/ local file path also works (uploaded first)"
           },
           "seg_type": {
             "type": "string",
@@ -1761,7 +2600,7 @@
               "model",
               "image"
             ],
-            "description": "default model"
+            "description": "image URLs with a recognized image extension use image; other inputs default to model"
           },
           "granularity": {
             "type": "string",
@@ -1791,6 +2630,39 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "rig_type": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "next"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -1805,6 +2677,27 @@
       "inputSchema": {
         "type": "object",
         "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "frozen": {
+            "type": "number"
+          },
+          "plans_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "balance",
+          "frozen",
+          "plans_url"
+        ],
+        "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
       "annotations": {
@@ -1842,6 +2735,63 @@
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"
       },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "total_entries": {
+            "type": "integer"
+          },
+          "returned_entries": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "total_credits": {
+            "type": "number"
+          },
+          "usage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "task_id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "credits_consumed": {
+                  "type": "number"
+                },
+                "created_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "task_id",
+                "type"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "missed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "total_entries",
+          "returned_entries",
+          "truncated",
+          "total_credits",
+          "usage"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -1868,6 +2818,44 @@
         },
         "required": [
           "task_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "output_dir": {
+            "type": "string"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "model_file": {
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "next": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "status",
+          "output_dir",
+          "files",
+          "next"
         ],
         "additionalProperties": false,
         "$schema": "http://json-schema.org/draft-07/schema#"

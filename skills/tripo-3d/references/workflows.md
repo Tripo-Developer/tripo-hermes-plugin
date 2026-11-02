@@ -46,8 +46,6 @@ check is free, rig uses the original model, and animation needs the rig task. GL
 - **The user's existing mesh**: use its absolute path or URL when the selected tool's schema accepts
   it. For compatible steps on one file, `tripo_import_model` first; its task id has a preview.
   Respect the task-type and file-token exceptions in [tools](tools.md) § Inputs.
-- **Fix one region**: `tripo_mesh_edit` with the model as `input` and a `bbox` around the region to
-  redo; the rest of the mesh is kept.
 - **Parts**: `generate_parts: true` at generation (v3.x, untextured; re-texture afterwards), or
   `tripo_segment` → `tripo_mesh_complete` on an existing model, or `tripo_smart_segment` for a GLB
   file or an image in one step.

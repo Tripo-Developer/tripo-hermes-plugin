@@ -1,5 +1,5 @@
-"""Docs contracts: what the README and the skills tell users and the agent must agree with the manifest, the pinned
-server's tool list and each other."""
+"""Docs contracts: what the README and the skills tell users and the agent must agree with the manifest, the
+server's tool snapshot and each other."""
 
 from __future__ import annotations
 

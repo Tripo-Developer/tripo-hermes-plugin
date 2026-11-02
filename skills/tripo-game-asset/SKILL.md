@@ -47,8 +47,8 @@ Two budget choices the defaults do not make for you:
 - **Quads at low poly**: P1 does not support `quad` (the tool strips it). Before submitting, ask
   whether to change to `model: "P2", quad: true` (48–25000 quads, output is FBX), use v3.1 with
   `smart_low_poly: true, quad: true` (`face_limit` 500–10000), or drop the quad requirement.
-- **v3.1 quality under a face cap**: set `model: "v3.1"` explicitly; a face budget alone in P2's
-  range routes to P2.
+- **v3.1 quality under a face cap**: set `model: "v3.1"` explicitly; without a model the server
+  uses P2.
 
 Override the face budget when the project has a stricter one, e.g. `tripo_text_to_3d`
 `{model: "P2", prompt: "a health potion bottle", face_limit: 3000, pbr: false}` → `tripo_convert`

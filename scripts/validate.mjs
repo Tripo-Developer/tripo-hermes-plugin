@@ -58,16 +58,15 @@ if (existsSync(join(ROOT, 'dashboard/manifest.json'))) {
 }
 
 console.log('MCP launch');
-const pin = (launch.args ?? []).map((arg) => /^tripo-cli@(.+)$/.exec(arg)?.[1]).find(Boolean);
 check(launch.command === 'npx' && launch.args?.[0] === '-y', 'launched with npx -y');
-check(/^\d+\.\d+\.\d+$/.test(pin ?? ''), `tripo-cli is pinned to an exact version (${pin ?? 'not found'})`);
+check(launch.args?.includes('tripo-cli@latest'), 'runs tripo-cli@latest');
 check(launch.args?.slice(-3).join(' ') === 'mcp --toolset full', 'runs mcp --toolset full');
 check(launch.cwd === '${PLUGIN_DATA}', 'cwd is the plugin data directory');
 check(launch.env?.TRIPO_API_KEY === '${TRIPO_API_KEY}', 'TRIPO_API_KEY is filled in by Hermes at connect time');
 check(launch.env?.TRIPO_HOME?.startsWith('${PLUGIN_DATA}/'), 'TRIPO_HOME is under the plugin data directory');
 check(launch.env?.TRIPO_REGION === 'ov', 'international region only (TRIPO_REGION=ov)');
 check(launch.env?.TRIPO_ANALYTICS_ENABLED === '0', 'telemetry off by default');
-check(fixture.tripo_cli === pin && fixture.toolset === 'full', `the tool snapshot comes from tripo-cli ${fixture.tripo_cli} full (matches the pin)`);
+check(/^\d+\.\d+\.\d+$/.test(fixture.tripo_cli ?? '') && fixture.toolset === 'full', `the tool snapshot comes from tripo-cli ${fixture.tripo_cli} full`);
 
 console.log('Approval and billing');
 check(server.trust === 'untrusted', 'trust: untrusted (write calls ask first)');
@@ -117,7 +116,7 @@ for (const path of shipped) {
     if (pattern.test(text)) fail(`${rel} appears to contain ${label}`);
   }
   for (const match of text.matchAll(/tripo-cli@(\d+\.\d+\.\d+)/g)) {
-    if (match[1] !== pin) fail(`${rel} says tripo-cli@${match[1]}, not the pinned ${pin}`);
+    fail(`${rel} says tripo-cli@${match[1]}; the plugin runs tripo-cli@latest`);
   }
   if (/\.md$/.test(rel) || rel === 'plugin.json') {
     for (const match of text.matchAll(/\btripo_[a-z0-9]+(?:_[a-z0-9]+)*\b/g)) {
@@ -125,7 +124,7 @@ for (const path of shipped) {
     }
   }
 }
-check(read('README.md').includes(`tripo-cli@${pin}`) && manifest.description?.includes(`tripo-cli@${pin}`), 'README and the plugin.json description name the pinned tripo-cli version');
+check(read('README.md').includes('tripo-cli@latest') && manifest.description?.includes('tripo-cli@latest'), 'README and the plugin.json description say tripo-cli@latest');
 ok(`scanned ${shipped.length} files`);
 
 if (failures > 0) {

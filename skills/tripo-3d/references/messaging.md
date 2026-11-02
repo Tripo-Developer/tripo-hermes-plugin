@@ -42,7 +42,7 @@ of it. On a chat app:
    blocks for up to 55 s per call.
 2. In the same turn, arm a wake sized to the job:
    `terminal(command="sleep 150 && echo tripo task <task_id>", background=true, notify_on_complete=true)`
-   (text, image or multiview to 3D 150; texture, rig, animate, segment or mesh edit 120; convert,
+   (text, image or multiview to 3D 150; texture, rig, animate or segment 120; convert,
    decimate, import, rig check or image steps 60; image to splat 240). `background=true` and
    `notify_on_complete=true` are both required: a sleep without them runs in the foreground and
    holds the chat. When the sleep exits, Hermes posts its completion into this chat as a new turn

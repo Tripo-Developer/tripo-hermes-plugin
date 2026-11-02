@@ -1,6 +1,6 @@
 # Tripo tools reference
 
-All 27 tools of the plugin's `tripo` server (tripo-cli in `--toolset full` mode). In Hermes they
+All 26 tools of the plugin's `tripo` server (tripo-cli in `--toolset full` mode). In Hermes they
 are named `mcp__tripo__<tool>` and found with `tool_search`. Pass every parameter below as a tool
 argument; `tool_describe` shows the exact schema. The server fixes linkage rules itself (pbr needs
 texture, model-specific options, quad output is FBX) and reports what it changed in `notes`.
@@ -28,7 +28,6 @@ tools skip the prompt).
 | `tripo_smart_uv` | standalone UV re-layout | billed | yes |
 | `tripo_segment` | split a model into parts | billed | yes |
 | `tripo_mesh_complete` | close the cut surfaces of a segment task | billed | yes |
-| `tripo_mesh_edit` | regenerate one boxed region of a model | billed | yes |
 | `tripo_smart_segment` | end-to-end parts pipeline for a GLB or an image | billed | yes |
 | `tripo_rig_check` | can this model be rigged, and as what body type | free | yes |
 | `tripo_rig` | add a skeleton | billed | yes |
@@ -60,9 +59,8 @@ tools skip the prompt).
 | v3.0, v2.5 | reproducing old work only | v2.5 has no `geometry_quality`, `quad`, `smart_low_poly`, `generate_parts`, `auto_size`, `compress` (removed with a note) |
 
 Website names map to these rows: H3.1 → `v3.1`, P1.0 → `P1`, P2.0 → `P2`. When `model` is omitted
-the server routes as described in the skill and names its choice in `notes`. An explicit user model
-or `default_model` setting takes priority; when neither selects a model, image and multiview tools
-need an explicit `model: "P2"` to use the recommended game model. Confirm before spending.
+the server uses P2. An explicit user model or `default_model` setting takes priority. Confirm before
+spending.
 
 ## Generation parameters
 
@@ -101,13 +99,12 @@ finished `tripo_image_to_multiview` / `tripo_edit_multiview` task.
 | `tripo_convert` | `format` GLTF/USDZ/FBX/OBJ/STL/3MF (3MF = single-colour print). Mesh: `face_limit`, `quad`, `force_symmetry`, `flatten_bottom` + `flatten_bottom_threshold`. Texture: `texture_size` (4096), `texture_format`, `bake`, `pack_uv`, `export_vertex_colors`. Export: `pivot_to_center_bottom`, `scale_factor`, `auto_size`, `with_animation`, `animate_in_place`, `part_names`, `export_orientation`, `fbx_preset` blender/3dsmax/mixamo. Quads cannot export GLTF |
 | `tripo_import_model` | an existing model (local path, URL or file_token) becomes a task with a preview |
 | `tripo_rig_check` | free; result says `riggable` and the recommended `rig_type` |
-| `tripo_rig` | `rig_type` from the check (biped, quadruped, hexapod, octopod, avian, serpentine, aquatic, others); `spec` tripo or mixamo, and on v3.0 also actorcore, unity (Unity Humanoid), unreal (UE Mannequin), vrm; `out_format` glb/fbx; `model`: pass `v3.0` for biped and others, `v2.5` (the official animal rig) for quadruped, hexapod, octopod, avian, serpentine and aquatic (the tool sends v3.0 for every body type when omitted, and the API's own default, `v1.0-20240301`, rigs bipeds only); v1.0 only on request |
+| `tripo_rig` | `rig_type` from the check (biped, quadruped, hexapod, octopod, avian, serpentine, aquatic, others); `spec` tripo or mixamo, and on v3.0 also actorcore, unity (Unity Humanoid), unreal (UE Mannequin), vrm; `out_format` glb/fbx; `model`: pass `v3.0` for biped and others, `v2.5` (the official animal rig) for quadruped, hexapod, octopod, avian, serpentine and aquatic (when omitted the tool sends v2.5 for quadruped and v3.0 for every other body type, and the API's own default, `v1.0-20240301`, rigs bipeds only); v1.0 only on request |
 | `tripo_animate` | `task_id` of a rig task; `animations` (≤5, billed per clip); `out_format`; `animate_in_place` (game code drives movement); `export_with_geometry` |
 | `tripo_decimate` | `face_limit` target 500–20000 tri / 500–10000 quad (a target, not a ceiling); `quad`; `bake` (true); `part_names`; `model` v2.0 (default), v3.0 (with `smart_uv`, billed higher), v1.0 (up to 2M faces, needs `face_limit`, no `bake`) |
 | `tripo_smart_uv` | separate billed UV re-layout for inputs ≤80,000 equivalent triangles (one quad counts two); `bake`, `export_orientation`, `compress`. Its `uv_render_url` is a UV preview, not the model |
 | `tripo_segment` | `model` `v1.0-20250506` (geometry-based, default) or `v2.0-20260430` (semantic) with `segmentation_granularity`, `split_by_connectivity`, `ref_image`; any of these without `model` selects v2.0, and with an explicit v1.0 they are rejected |
 | `tripo_mesh_complete` | `task_id` of a segment task; `completion_mode` `ai_completion` or the cheaper `quick_cap`; `part_names` |
-| `tripo_mesh_edit` | P2 pipeline; `bbox` `[[x1,y1,z1],[x2,y2,z2]]` around the region to redo; `face_limit` (≥100); `ref_image`; `compress`. The rest of the mesh is kept |
 | `tripo_smart_segment` | `seg_type` `model` (GLB only) or `image`; `granularity` coarse/medium/fine; `hint` naming the parts; `transform` |
 
 Animation presets follow the rig model the `tripo_rig` result names. v3.0 and v2.5 biped rigs:
@@ -124,8 +121,8 @@ Ask for v1.0 up front when the user wants dances, greetings or sports clips.
 - `tripo_generate_image`: text to image without `input`; editing or fusion with `input` or
   `inputs` (refer to them as image[1], image[2] in the prompt; up to 4 seedream, 10 banana,
   16 chat_image). Templates: `t_pose` (before rigging), `3d_enhance` (clean a photo),
-  `asset_extraction` (text mode), `character_completion`, `variants`, `figure`. Negative prompts go
-  inside `prompt` after `--no`.
+  `asset_extraction` (text mode), `character_completion`, `variants`, `figure`. Put what to avoid
+  in `negative_prompt`.
 - Image models: `seedream_v4` (text default, not for editing), `seedream_v5` (editing default),
   `banana`, `banana_pro`, `banana2`, `chat_image_2`, `chat_image_2.5_flare` (faster),
   `chat_image_2.5_sunburst` (keeps untouched regions). `chat_image_1` is retired and

@@ -4,9 +4,10 @@
 
 First version.
 
-- Runs Tripo's official tripo-cli as a local stdio MCP server (`npx -y tripo-cli@0.9.0 mcp --toolset full`)
-  with the hosted Tripo MCP tool set plus local file paths and `tripo_download`; international
-  accounts only (`TRIPO_REGION=ov`), analytics off, the API key from the plugin's secret setting.
+- Runs Tripo's official tripo-cli as a local stdio MCP server (`npx -y tripo-cli@latest mcp --toolset full`,
+  the newest release at each session start) with the hosted Tripo MCP tool set plus local file
+  paths and `tripo_download`; international accounts only (`TRIPO_REGION=ov`), analytics off, the
+  API key from the plugin's secret setting.
 - The server is untrusted: every call that is not read-only asks for approval. No per-tool costs or
   spend limit are declared yet.
 - Skills `tripo-3d` (with tool, workflow and chat-app references) and `tripo-game-asset`, carrying
@@ -88,10 +89,12 @@ First version.
   2026-10-30): `chat_image_2.5_sunburst` costs 10 like the other chat_image models,
   `quality` high/xhigh/max costs 20–50, and convert's 10-credit tier names its options.
   `tripo_plan` and dry_run give a list price only for v3.1/P2 generation steps.
-- Tool reference synced with tripo-cli 0.9.0: v2.5 limits; `generate_parts` is
+- Tool reference synced with tripo-cli 0.10.0: v2.5 limits; `generate_parts` is
   rejected together with `smart_low_poly`; segment's v2-only options; `quality` and
   `background` scope and per-model image `size`; generation add-ons other than texture
-  quality apply to v3.1 only; standalone smart UV costs 20; P1 strips `quad`.
+  quality apply to v3.1 only; standalone smart UV costs 20; P1 strips `quad`; an omitted
+  generation `model` means P2; rigs default to v2.5 for quadrupeds; image generation takes
+  `negative_prompt`; mesh editing is no longer offered (26 tools).
 - `export_uv` is not limited to the P series (official API docs).
 - Rigging passes `model` explicitly by body type, `"v3.0"` for bipeds and `"v2.5"` (the
   official animal rig) for animals (skill, workflows and the dashboard's Rig it prompt): the official API default is still `v1.0-20240301`,

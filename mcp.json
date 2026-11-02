@@ -4,7 +4,7 @@
     "tripo": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "tripo-cli@0.9.0", "mcp", "--toolset", "full"],
+      "args": ["-y", "tripo-cli@latest", "mcp", "--toolset", "full"],
       "cwd": "${PLUGIN_DATA}",
       "env": {
         "TRIPO_API_KEY": "${TRIPO_API_KEY}",
