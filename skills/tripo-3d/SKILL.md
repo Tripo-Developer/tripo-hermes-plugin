@@ -257,8 +257,9 @@ Always state the task_id, the format and each saved path. URLs from `output_urls
 - **Chat apps (Telegram, Discord, Slack, WhatsApp, Signal, Matrix ...):** never emit the
   `::tripo-model` line or a markdown image (`![..](url)`, never). Attach files with lines that are
   only `MEDIA:<absolute path>`, from a download into Hermes' cache folder:
-  [messaging](references/messaging.md). End with the next steps as a short numbered list with
-  their credits, the same follow-ups as the Desktop Next menu (messaging § Next steps).
+  [messaging](references/messaging.md). An animated result also gets a short MP4 of its motion
+  ([preview video](references/preview-video.md)). End with the next steps as a short numbered list
+  with their credits, the same follow-ups as the Desktop Next menu (messaging § Next steps).
 - **CLI / TUI:** plain text, no `MEDIA:` (printed literally): the absolute path in backticks, never
   as a clickable link.
 - **Unattended runs** (cron, `hermes chat -q`, API runs without an approver): paid calls cannot be

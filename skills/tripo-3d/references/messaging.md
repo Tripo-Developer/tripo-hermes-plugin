@@ -32,6 +32,10 @@ without boosts. Check the size first (`ls -l "<model_file>"`). When the model is
 the preview, state the size and the path on the Hermes machine, and offer a smaller export:
 `tripo_convert` with `texture_size: 1024` or a `face_limit` (billed; ask first).
 
+An animation result shows no motion in a file, so also send a short MP4 of it, rendered on the
+Hermes machine ([preview video](preview-video.md)); a static model gets one when the user asks to
+see it turn.
+
 ## Long jobs: don't hold the chat
 
 Generation takes 1–4 minutes and later steps add more; a blocking wait keeps the chat silent for all
@@ -70,8 +74,9 @@ card's Next menu offers for that result:
   Texture it · 10–30 credits (standard, detailed or extreme) when it has no texture, else
   Retexture · 10–30 credits (a new style); Remesh · 30 credits (triangles or quads),
   Resize · 10 credits, Check rigging · free, Rig it · 25 credits, Split into parts · 40 credits,
-  Make it playable · 25–75 credits (rig and game clips); a text-to-3D model also
-  Regenerate · the same credits again;
+  Make it playable · 25–75 credits (rig and game clips), Dances and emotes · 55–75 credits
+  (a humanoid on the v1.0 rig), Use it as a game prop · free (a pickup, weapon, breakable or
+  obstacle in the web game); a text-to-3D model also Regenerate · the same credits again;
 - a rigged model: Animate · 10 credits per clip, Make it playable · 10–50 credits;
 - an animated model: Playable web prototype · free (a folder on the Hermes machine),
   Export to a game engine · up to 10 credits (Godot free, Unity or Unreal 5 or 10),
@@ -80,5 +85,6 @@ card's Next menu offers for that result:
 
 A reply with just a number picks that step and confirms a fixed price. When the price depends on
 a choice (quality, clips, model, engine), ask it with the credits of each option first. Rig it runs
-the free rig check first and stops when the model is not riggable. Make it playable, Playable web
-prototype and Export to a game engine follow the Game Studio steps of the tripo-game-asset skill.
+the free rig check first and stops when the model is not riggable. Make it playable, Dances and
+emotes, Use it as a game prop, Playable web prototype and Export to a game engine follow the Game
+Studio steps of the tripo-game-asset skill.

@@ -1,7 +1,8 @@
 // A third-person arena for a rigged, animated Tripo character: collect every coin while slimes (or another Tripo
-// model) chase you; strike them, burn them with a special move, run and jump. play.js holds the character logic (the
-// same code as the Tripo card's Play mode in Hermes Desktop). Serve this folder over http, since browsers block
-// modules and model files on file://:
+// model) chase you; strike them, burn them with a special move, run and jump. More Tripo models join in as props:
+// pickups to collect, a weapon in the hand, breakables to smash, obstacles in the way; with no character yet, a
+// capsule stand-in plays. play.js holds the character logic (the same code as the Tripo card's Play mode in Hermes
+// Desktop). Serve this folder over http, since browsers block modules and model files on file://:
 //   python3 -m http.server 8000 --bind 127.0.0.1   then open http://127.0.0.1:8000
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -9,11 +10,11 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'
 
-import { bindKeys, clipRoles, CONTROLS, createCharacter, firstHop, inReach, leftward, noKeys, stripTravel } from './play.js'
+import { bindKeys, burst, clipRoles, CONTROLS, createCharacter, emoteClips, emoteHint, firstHop, handBone, inReach, leftward, noKeys, outside, stripTravel, swingAngle } from './play.js'
 
 const CONFIG = {
-  // The animated GLB (?model=other.glb overrides it), its height in metres, and more GLBs animating the same rig
-  // whose clips it also gets.
+  // The animated GLB (?model=other.glb overrides it; null: a capsule stand-in, to play with props alone), its height
+  // in metres, and more GLBs animating the same rig whose clips it also gets.
   model: new URLSearchParams(location.search).get('model') || 'character.glb',
   height: 1.8,
   clips: [],
@@ -27,6 +28,11 @@ const CONFIG = {
   enemies: { count: 5, model: null, height: 0.6 },
   // Collect them all to win.
   coins: 8,
+  // Static Tripo models in the game, each { model: 'crate.glb', role, count, height }: role 'pickup' (collected with
+  // the coins, needed to win), 'breakable' (a strike shatters it, for a point), 'obstacle' (nobody walks through it)
+  // or 'weapon' (one, in the character's right hand, striking further; `grip` turns it in the hand, [x, y, z] in
+  // degrees). `height` in metres; a weapon's is its length.
+  props: [],
   // Arena radius, in metres.
   arena: 15
 }
@@ -81,6 +87,8 @@ async function prepare(file, height, more = [], names = {}) {
     const i = clips.findIndex(c => c.name === name)
     if (i >= 0) roles[role] = i
   }
+  // Clips no role plays (a v1.0 rig's dances and emotes) go on the digit keys.
+  const emotes = emoteClips(clips.map(c => c.name), roles)
   const moved = clips.map(c => stripTravel(c.tracks))
   model.updateMatrixWorld(true)
   const jump = roles.jump === null ? null : clips[roles.jump]
@@ -124,19 +132,62 @@ async function prepare(file, height, more = [], names = {}) {
       bones.push({ name: bone.name, x: at.x, z: at.z })
     }
   })
-  return { model, clips, roles, still, mixer, actions, current, travel, left: leftward(bones), h: height }
+  return { model, clips, roles, emotes, still, mixer, actions, current, travel, left: leftward(bones), h: height }
+}
+
+// A capsule figure for CONFIG.model null, facing +Z with its visor; its right hand (at -X) holds a weapon.
+function standIn(height) {
+  const model = new THREE.Group()
+  const skin = new THREE.MeshStandardMaterial({ color: 0x9aa7bd, roughness: 0.55 })
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17 * height, 0.5 * height, 8, 16), skin)
+  body.position.y = 0.42 * height
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12 * height, 24, 16), skin)
+  head.position.y = 0.88 * height
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.16 * height, 0.04 * height, 0.06 * height), new THREE.MeshStandardMaterial({ color: 0x1d2330 }))
+  visor.position.set(0, 0.9 * height, 0.1 * height)
+  const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.05 * height, 0.24 * height, 4, 8), skin)
+  arm.position.set(-0.22 * height, 0.55 * height, 0)
+  const hand = new THREE.Group()
+  hand.position.set(-0.22 * height, 0.38 * height, 0.04 * height)
+  model.add(body, head, visor, arm, hand)
+  model.traverse(node => {
+    if (node.isMesh) node.castShadow = true
+  })
+  return { model, clips: [], roles: clipRoles([]), emotes: [], still: null, mixer: new THREE.AnimationMixer(model), actions: [], current: null, travel: null, left: [1, 0], h: height, hand }
+}
+
+// A static Tripo model scaled to `size` metres (its height, or for a weapon its longest side), in a group whose
+// origin is the middle of its base.
+async function loadProp(file, size, longest) {
+  const model = (await loader.loadAsync(file)).scene
+  model.traverse(node => {
+    if (node.isMesh) node.castShadow = true
+  })
+  const box = new THREE.Box3().setFromObject(model)
+  const span = box.getSize(new THREE.Vector3())
+  model.scale.multiplyScalar(size / ((longest ? Math.max(span.x, span.y, span.z) : span.y) || 1))
+  model.updateMatrixWorld(true)
+  box.setFromObject(model)
+  const center = box.getCenter(new THREE.Vector3())
+  model.position.sub(new THREE.Vector3(center.x, box.min.y, center.z))
+  return { model: new THREE.Group().add(model), size: box.getSize(new THREE.Vector3()) }
 }
 
 async function main() {
-  const [hero, foe] = await Promise.all([
-    prepare(CONFIG.model, CONFIG.height, CONFIG.clips, CONFIG.roles),
-    CONFIG.enemies.model ? prepare(CONFIG.enemies.model, CONFIG.enemies.height) : null
+  const [hero, foe, ...props] = await Promise.all([
+    CONFIG.model ? prepare(CONFIG.model, CONFIG.height, CONFIG.clips, CONFIG.roles) : standIn(CONFIG.height),
+    CONFIG.enemies.model ? prepare(CONFIG.enemies.model, CONFIG.enemies.height) : null,
+    ...CONFIG.props.map(p => loadProp(p.model, p.height ?? 1, p.role === 'weapon'))
   ])
   const { model, clips, roles, mixer, actions, h } = hero
   let current = hero.current
   const arena = CONFIG.arena
-  const options = { roles, durations: clips.map(c => c.duration), height: h, travel: hero.travel, left: hero.left, still: hero.still, bounds: arena - 0.5 * h }
+  // The footprints of the obstacles, and of the breakables until they break, grown by the character's own radius.
+  const blockers = []
+  const options = { roles, durations: clips.map(c => c.duration), height: h, travel: hero.travel, left: hero.left, still: hero.still, emotes: hero.emotes, bounds: arena - 0.5 * h, blockers }
   let character = createCharacter(options)
+  const emotes = emoteHint(hero.emotes.map(i => clips[i].name))
+  if (emotes) document.getElementById('controls').textContent += ` · ${emotes}`
 
   // The model sits in `turn`, turned so its front faces the pivot's +Z; the pivot walks and faces the heading.
   const pivot = new THREE.Group()
@@ -146,8 +197,36 @@ async function main() {
   pivot.add(turn)
   scene.add(pivot)
   const filled = ['idle', 'run', 'jump', 'attack'].filter(role => roles[role] === null)
-  document.getElementById('clips').textContent =
-    `Clips: ${clips.filter(c => c.name !== 'still').map(c => c.name).join(', ') || 'none'}` + (filled.length ? ` · made up in code: ${filled.join(', ')}` : '')
+  document.getElementById('clips').textContent = CONFIG.model
+    ? `Clips: ${clips.filter(c => c.name !== 'still').map(c => c.name).join(', ') || 'none'}` + (filled.length ? ` · made up in code: ${filled.join(', ')}` : '')
+    : 'A stand-in character: set CONFIG.model to an animated Tripo GLB'
+  document.getElementById('props').textContent = CONFIG.props.length ? `Props: ${CONFIG.props.map(p => `${p.model.replace(/\.glb$/i, '')} (${p.role})`).join(', ')}` : ''
+
+  // A weapon goes in the right hand, upright as the character stands in its first idle frame and turned by `grip`,
+  // then follows the hand; without an attack clip it swings in the hand as the character strikes.
+  let swing = null
+  let reach = 0
+  const held = CONFIG.props.findIndex(p => p.role === 'weapon')
+  if (held >= 0) {
+    const { model: weapon, size } = props[held]
+    const bones = []
+    model.traverse(node => node.isBone && bones.push(node))
+    const i = handBone(bones.map(b => b.name))
+    const hand = hero.hand ?? (i === null ? null : bones[i])
+    pivot.updateMatrixWorld(true)
+    const grip = new THREE.Group()
+    grip.position.copy(hand ? hand.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(-0.25 * h, 0.5 * h, 0.1 * h))
+    weapon.rotation.set(...(CONFIG.props[held].grip ?? [0, 0, 0]).map(THREE.MathUtils.degToRad))
+    weapon.position.set(0, -0.15 * size.y, 0).applyEuler(weapon.rotation) // the hand holds it above its end
+    grip.add(weapon)
+    scene.add(grip)
+    const holder = hand ?? pivot
+    holder.attach(grip)
+    swing = { grip, rest: grip.quaternion.clone() }
+    reach = 0.8 * Math.max(size.x, size.y, size.z)
+  }
+  const tilt = new THREE.Quaternion()
+  const across = new THREE.Vector3(1, 0, 0)
 
   scene.fog = new THREE.Fog(0x15171c, arena * 0.9, arena * 2.5)
   scene.add(new THREE.HemisphereLight(0xdde6ff, 0x30281f, 1.2))
@@ -217,14 +296,59 @@ async function main() {
     scene.add(coin)
     return coin
   })
-  const placeCoins = () =>
-    coins.forEach(coin => {
-      const a = Math.random() * 2 * Math.PI
-      const r = arena * (0.15 + 0.7 * Math.random())
-      coin.position.set(Math.sin(a) * r, 0.4 * h, Math.cos(a) * r)
-      coin.visible = true
+
+  // The other props, `count` copies each: obstacles and breakables first, then what there is to collect, each clear
+  // of those before it.
+  const placed = role =>
+    CONFIG.props.flatMap((p, i) =>
+      p.role !== role
+        ? []
+        : Array.from({ length: p.count ?? 1 }, () => {
+            const mesh = props[i].model.clone()
+            scene.add(mesh)
+            return { mesh, size: props[i].size, r: Math.max(props[i].size.x, props[i].size.z) / 2 }
+          })
+    )
+  const obstacles = placed('obstacle')
+  const breakables = placed('breakable')
+  const pickups = placed('pickup')
+  const block = () =>
+    blockers.splice(0, blockers.length, ...[...obstacles, ...breakables.filter(b => !b.broken)].map(o => ({ x: o.mesh.position.x, z: o.mesh.position.z, r: o.r + 0.2 * h })))
+  const somewhere = (near, far) => {
+    const a = Math.random() * 2 * Math.PI
+    const r = arena * (near + (far - near) * Math.random())
+    return outside(Math.sin(a) * r, Math.cos(a) * r, blockers)
+  }
+  for (const o of [...obstacles, ...breakables]) {
+    const [x, z] = somewhere(0.2, 0.75)
+    o.mesh.position.set(x, 0, z)
+    block()
+  }
+  // A breakable bursts into shards of its own material (burst in play.js).
+  breakables.forEach((b, i) => {
+    const first = b.mesh.getObjectByProperty('isMesh', true)
+    const material = Array.isArray(first?.material) ? first.material[0] : first?.material
+    const piece = new THREE.TetrahedronGeometry(0.08 * Math.max(b.size.x, b.size.y, b.size.z))
+    b.shards = burst(12, i + 1).map(shard => {
+      const mesh = new THREE.Mesh(piece, material)
+      mesh.visible = false
+      mesh.castShadow = true
+      scene.add(mesh)
+      return { mesh, shard }
     })
-  placeCoins()
+    b.broken = false
+    b.t = 0
+  })
+  // What there is to collect: the coins, and the pickups, which also bob as they spin.
+  const loot = [...coins.map(mesh => ({ mesh, y: 0.4 * h, bob: 0, r: 0 })), ...pickups.map(p => ({ mesh: p.mesh, y: 0.12 * h, bob: 0.05 * h, r: p.r }))]
+  const things = pickups.length ? 'pickups' : 'coins'
+  const placeLoot = () =>
+    loot.forEach(item => {
+      const [x, z] = somewhere(0.15, 0.85)
+      item.mesh.position.set(x, item.y, z)
+      item.mesh.visible = true
+    })
+  placeLoot()
 
   // The special move's particles: a ring buffer of glowing points that fly out of the character and fade.
   const flames = 400
@@ -257,6 +381,7 @@ async function main() {
   let breath = 0
   let got = 0
   let kills = 0
+  let broken = 0
   let over = false
   const { keys } = bindKeys(canvas)
   const restart = () => {
@@ -269,10 +394,17 @@ async function main() {
     breath = 0
     got = 0
     kills = 0
+    broken = 0
     over = false
     message.textContent = ''
     enemies.forEach(spawn)
-    placeCoins()
+    for (const b of breakables) {
+      b.broken = false
+      b.mesh.visible = true
+      b.shards.forEach(s => (s.mesh.visible = false))
+    }
+    block()
+    placeLoot()
   }
   canvas.addEventListener('keydown', e => {
     if (e.code === 'KeyR') {
@@ -325,6 +457,9 @@ async function main() {
       next.timeScale = show.timeScale
     }
     mixer.update(dt)
+    if (swing && roles.attack === null) {
+      swing.grip.quaternion.copy(swing.rest).multiply(tilt.setFromAxisAngle(across, pose.role === 'attack' ? swingAngle(pose.progress) : 0))
+    }
 
     breath -= dt
     if (breath > 0) {
@@ -371,8 +506,9 @@ async function main() {
       const ez = pose.z - e.z
       const d = Math.hypot(ex, ez) || 1
       if (!over && d > 0.2 * h + er) {
-        e.x += (ex / d) * character.pace * 0.6 * dt
-        e.z += (ez / d) * character.pace * 0.6 * dt
+        const [x, z] = outside(e.x + (ex / d) * character.pace * 0.6 * dt, e.z + (ez / d) * character.pace * 0.6 * dt, blockers)
+        e.x = x
+        e.z = z
       }
       if (e.mixer) {
         e.mixer.update(over ? 0 : dt)
@@ -383,7 +519,7 @@ async function main() {
         e.mesh.position.set(e.x, er + Math.abs(Math.sin(e.phase)) * 0.12 * h, e.z)
         e.mesh.scale.set(1, 1 - 0.15 * Math.abs(Math.cos(e.phase)), 1)
       }
-      if ((pose.strike && inReach(pose, e.x, e.z, 0.7 * h + er, Math.PI / 2.5)) || (breath > 0 && inReach(pose, e.x, e.z, 2.5 * h + er, 0.4))) {
+      if ((pose.strike && inReach(pose, e.x, e.z, 0.7 * h + reach + er, Math.PI / 2.5)) || (breath > 0 && inReach(pose, e.x, e.z, 2.5 * h + er, 0.4))) {
         e.dying = 0.25
         kills += 1
       } else if (!over && d < 0.25 * h + er && hurt <= 0) {
@@ -397,30 +533,56 @@ async function main() {
     hurt -= dt
     pivot.visible = hurt <= 0 || Math.floor(hurt * 10) % 2 === 0
 
-    for (const coin of coins) {
-      if (coin.visible) {
-        coin.rotation.y += dt * 3
-        if (!over && Math.hypot(coin.position.x - pose.x, coin.position.z - pose.z) < 0.45 * h) {
-          coin.visible = false
+    // A strike or the special move shatters a breakable; its shards fly for 1.2 s.
+    for (const b of breakables) {
+      const { x, z } = b.mesh.position
+      if (!b.broken && ((pose.strike && inReach(pose, x, z, 0.7 * h + reach + b.r, Math.PI / 2.5)) || (breath > 0 && inReach(pose, x, z, 2.5 * h + b.r, 0.4)))) {
+        b.broken = true
+        b.t = 0
+        b.mesh.visible = false
+        broken += 1
+        block()
+      }
+      if (b.broken && b.t < 1.2) {
+        b.t += dt
+        const s = b.t
+        const bh = b.size.y
+        for (const { mesh, shard } of b.shards) {
+          const { at, velocity, spin } = shard
+          mesh.visible = s < 1.2
+          mesh.position.set(x + at[0] * b.size.x + velocity[0] * bh * s, Math.max(at[1] * bh + velocity[1] * bh * s - 1.5 * bh * s * s, 0), z + at[2] * b.size.z + velocity[2] * bh * s)
+          mesh.rotation.set(spin[0] * s, spin[1] * s, spin[2] * s)
+          mesh.scale.setScalar(Math.min(1, (1.2 - s) / 0.3))
+        }
+      }
+    }
+
+    for (const item of loot) {
+      const { mesh } = item
+      if (mesh.visible) {
+        mesh.rotation.y += dt * 3
+        mesh.position.y = item.y + item.bob * Math.sin(clock.elapsedTime * 2.5)
+        if (!over && Math.hypot(mesh.position.x - pose.x, mesh.position.z - pose.z) < 0.45 * h + item.r) {
+          mesh.visible = false
           got += 1
         }
       }
     }
     if (!over && health <= 0) {
       over = true
-      message.textContent = `Defeated with ${got} of ${coins.length} coins\nPress R to play again`
-    } else if (!over && coins.length && got === coins.length) {
+      message.textContent = `Defeated with ${got} of ${loot.length} ${things}\nPress R to play again`
+    } else if (!over && loot.length && got === loot.length) {
       over = true
-      message.textContent = `You win: every coin, ${kills} enem${kills === 1 ? 'y' : 'ies'} defeated\nPress R to play again`
+      message.textContent = `You win: every ${things.slice(0, -1)}, ${kills} enem${kills === 1 ? 'y' : 'ies'} defeated\nPress R to play again`
     }
     healthBar.style.width = `${Math.max(health, 0)}%`
     staminaBar.style.width = `${stamina}%`
-    score.textContent = `Coins ${got}/${coins.length} · Defeated ${kills}`
+    score.textContent = `${things[0].toUpperCase()}${things.slice(1)} ${got}/${loot.length} · Defeated ${kills}` + (breakables.length ? ` · Broken ${broken}/${breakables.length}` : '')
     controls.update()
     renderer.render(scene, camera)
   })
 }
 
 main().catch(err => {
-  message.textContent = `Could not start the game: ${err.message}\nPut the animated GLB in this folder as ${CONFIG.model} and serve the folder over http.`
+  message.textContent = `Could not start the game: ${err.message}\nPut the GLBs CONFIG names (${[CONFIG.model, ...CONFIG.clips, CONFIG.enemies.model, ...CONFIG.props.map(p => p.model)].filter(Boolean).join(', ') || 'none'}) in this folder and serve the folder over http.`
 })

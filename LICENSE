@@ -24,11 +24,14 @@ SOFTWARE.
 
 Parts of the Desktop viewer (src/stage.ts, src/parse-model.ts, src/status.ts,
 src/active.ts, src/views.tsx, src/task-card.tsx and their build in
-desktop/plugin.js) and the Blender handoff
+desktop/plugin.js), the Blender handoff
 (skills/tripo-3d/scripts/blender_handoff.py,
 skills/tripo-3d/references/blender.md,
 skills/tripo-3d/references/blender-animation-handoff.md and
-tests/test_blender_handoff.py) are adapted from the Meshy plugin in Hermes
+tests/test_blender_handoff.py) and the preview video
+(skills/tripo-3d/scripts/render_preview.mjs,
+skills/tripo-3d/references/preview-video.md and
+tests/test_render_preview.py) are adapted from the Meshy plugin in Hermes
 Official Plugins (https://github.com/NousResearch/hermes-official-plugins),
 under this license:
 

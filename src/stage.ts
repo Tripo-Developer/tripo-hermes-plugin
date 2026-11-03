@@ -15,21 +15,28 @@ import {
   AnimationMixer,
   type Bone,
   Box3,
+  BufferGeometry,
   Clock,
   DirectionalLight,
+  DoubleSide,
   GridHelper,
   Group,
+  LineBasicMaterial,
+  LineLoop,
   LoopOnce,
   LoopRepeat,
   type Material,
   Matrix3,
-  type Mesh,
+  Mesh,
+  MeshBasicMaterial,
   type Object3D,
   PerspectiveCamera,
   PMREMGenerator,
   PropertyBinding,
+  RingGeometry,
   Scene,
   SRGBColorSpace,
+  TetrahedronGeometry,
   Vector3,
   WebGLRenderer
 } from 'three'
@@ -37,7 +44,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 import { parseModel } from './parse-model.ts'
-import { bindKeys, type Character, clipRoles, createCharacter, firstHop, type Keys, leftward, type Pose, stripTravel, type XZ } from './play.ts'
+import { bindKeys, burst, type Character, clipRoles, createCharacter, emoteClips, firstHop, type Keys, leftward, type Pose, type PropRole, type Shard, stripTravel, swingAngle, type XZ } from './play.ts'
 
 export interface ModelStats {
   triangles: number
@@ -64,6 +71,10 @@ export interface Stage {
   /** Play mode: the keyboard drives the character on the focused canvas (see play.ts) and the camera follows it;
    *  off puts the model, its clip and the view back. */
   setPlayMode: (on: boolean) => void
+  /** Show on the spot what the model does as a prop in the playable web game (see PROP_ROLES): a pickup bobs and spins
+   *  over a ring, a weapon swings about its bottom end, a breakable shakes, shatters and comes back, an obstacle shows
+   *  its footprint. Null puts the model and auto-rotate back. */
+  setPropPreview: (role: PropRole | null) => void
   /** `fn` runs when the GPU drops this viewer's WebGL context; after a loss the browser may refuse new contexts to
    *  the whole window until the app restarts. */
   onContextLost: (fn: () => void) => void
@@ -128,6 +139,19 @@ export function createStage(host: HTMLElement): Stage {
     resume: number
     autoRotate: boolean
   } = null
+  // Prop preview: the model sits in `holder`, which the demo moves; `extras` (a ring, a footprint, shards in the model's
+  // own material) stay hidden, and the demo still, until their shaders have linked.
+  let prop: null | {
+    role: PropRole
+    holder: Group
+    extras: Group
+    shards: { mesh: Mesh; shard: Shard }[]
+    owned: { dispose: () => void }[]
+    size: Vector3
+    t: number
+    ready: boolean
+    autoRotate: boolean
+  } = null
   // dispose() drops the context on purpose (forceContextLoss): only a loss before that is news.
   renderer.domElement.addEventListener('webglcontextlost', () => !disposed && contextLost())
 
@@ -169,8 +193,11 @@ export function createStage(host: HTMLElement): Stage {
     if (play) {
       stepPlay(delta)
     }
+    if (prop) {
+      stepProp(delta)
+    }
     const moved = controls.update()
-    const animating = play !== null || (playing && mixer !== null && action !== null)
+    const animating = play !== null || prop !== null || (playing && mixer !== null && action !== null)
     if (animating) {
       mixer?.update(delta)
     }
@@ -186,6 +213,7 @@ export function createStage(host: HTMLElement): Stage {
       return
     }
     exitPlay()
+    exitProp()
     mixer?.stopAllAction()
     mixer?.uncacheRoot(model)
     mixer = null
@@ -261,6 +289,7 @@ export function createStage(host: HTMLElement): Stage {
     root.updateMatrixWorld(true)
     const playClips = clips.map(c => c.clone())
     const roles = clipRoles(playClips.map(c => c.name))
+    const emotes = emoteClips(playClips.map(c => c.name), roles)
     let travel: XZ | null = null
     for (const [i, clip] of playClips.entries()) {
       const out = stripTravel(clip.tracks)
@@ -291,7 +320,7 @@ export function createStage(host: HTMLElement): Stage {
       still = playClips.length - 1
     }
     const height = new Box3().setFromObject(root).getSize(new Vector3()).y || 1
-    const character = createCharacter({ roles, durations: playClips.map(c => c.duration), height, travel, left: leftward(bones), still })
+    const character = createCharacter({ roles, durations: playClips.map(c => c.duration), height, travel, left: leftward(bones), still, emotes })
 
     const pivot = new Group()
     const turn = new Group()
@@ -382,6 +411,109 @@ export function createStage(host: HTMLElement): Stage {
     if (next) {
       next.clampWhenFinished = true
       next.timeScale = pose.timeScale
+    }
+  }
+
+  const enterProp = (role: PropRole) => {
+    if (!model || play) {
+      return
+    }
+    exitProp()
+    const root = model
+    const size = new Box3().setFromObject(root).getSize(new Vector3())
+    const h = size.y || 1
+    // The same circle the web game blocks with (see game.js).
+    const footprint = Math.max(size.x, size.z) / 2 || h / 2
+    const holder = new Group()
+    scene.remove(root)
+    holder.add(root)
+    scene.add(holder)
+    const extras = new Group()
+    extras.visible = false
+    const owned: { dispose: () => void }[] = []
+    if (role === 'pickup') {
+      const ring = new Mesh(new RingGeometry(footprint * 0.85, footprint * 1.05, 64), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, side: DoubleSide, depthWrite: false }))
+      ring.rotation.x = -Math.PI / 2
+      ring.position.y = 0.002 * h
+      extras.add(ring)
+      owned.push(ring.geometry, ring.material)
+    } else if (role === 'obstacle') {
+      const points = Array.from({ length: 64 }, (_, i) => new Vector3(Math.sin((i / 32) * Math.PI) * footprint, 0.002 * h, Math.cos((i / 32) * Math.PI) * footprint))
+      const outline = new LineLoop(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }))
+      extras.add(outline)
+      owned.push(outline.geometry, outline.material)
+    }
+    const shards: { mesh: Mesh; shard: Shard }[] = []
+    if (role === 'breakable') {
+      const first = root.getObjectByProperty('isMesh', true) as Mesh | undefined
+      const material = Array.isArray(first?.material) ? first.material[0] : first?.material
+      const piece = new TetrahedronGeometry(0.07 * Math.max(size.x, size.y, size.z))
+      owned.push(piece)
+      for (const shard of burst(16)) {
+        const mesh = new Mesh(piece, material)
+        mesh.visible = false
+        extras.add(mesh)
+        shards.push({ mesh, shard })
+      }
+    }
+    scene.add(extras)
+    const current = { role, holder, extras, shards, owned, size, t: 0, ready: false, autoRotate: controls.autoRotate }
+    prop = current
+    controls.autoRotate = false
+    // Link the new shaders before they draw, without blocking (see load).
+    void renderer.compileAsync(extras, camera, scene).then(() => {
+      if (prop === current) {
+        current.ready = true
+        extras.visible = true
+      }
+    })
+    dirty = true
+  }
+
+  const exitProp = () => {
+    if (!prop) {
+      return
+    }
+    const { holder, extras, owned, autoRotate } = prop
+    prop = null
+    if (model) {
+      holder.remove(model)
+      scene.add(model)
+    }
+    scene.remove(holder)
+    scene.remove(extras)
+    owned.forEach(o => o.dispose())
+    controls.autoRotate = autoRotate
+    dirty = true
+  }
+
+  const stepProp = (delta: number) => {
+    if (!prop?.ready) {
+      return
+    }
+    prop.t += delta
+    const { holder, size, t } = prop
+    const h = size.y || 1
+    if (prop.role === 'pickup') {
+      holder.position.y = h * (0.12 + 0.05 * Math.sin(t * 2.5))
+      holder.rotation.y = t * 1.6
+    } else if (prop.role === 'weapon') {
+      holder.rotation.z = swingAngle((t % 1.6) / 0.9) // a 0.9 s swing, then a rest
+    } else if (prop.role === 'breakable') {
+      // Every 3.2 s: still, a shake from 0.5 s, shards from 1 s for 1.2 s, back from 2.6 s.
+      const c = t % 3.2
+      const shake = c >= 0.5 && c < 1 ? (0.015 * h * (c - 0.5)) / 0.5 : 0
+      holder.visible = c < 1 || c >= 2.6
+      holder.position.set(Math.sin(c * 70) * shake, 0, Math.cos(c * 53) * shake)
+      holder.scale.setScalar(c >= 2.6 ? 0.6 + 0.4 * Math.min((c - 2.6) / 0.25, 1) : 1)
+      const s = c - 1
+      for (const { mesh, shard } of prop.shards) {
+        mesh.visible = s >= 0 && s < 1.2
+        const { at, velocity, spin } = shard
+        mesh.position.set(at[0] * size.x + velocity[0] * h * s, Math.max(at[1] * size.y + velocity[1] * h * s - 1.5 * h * s * s, 0), at[2] * size.z + velocity[2] * h * s)
+        mesh.rotation.set(spin[0] * s, spin[1] * s, spin[2] * s)
+        mesh.scale.setScalar(Math.min(1, (1.2 - s) / 0.3))
+      }
     }
   }
 
@@ -489,6 +621,13 @@ export function createStage(host: HTMLElement): Stage {
         enterPlay()
       } else {
         exitPlay()
+      }
+    },
+    setPropPreview(role) {
+      if (role) {
+        enterProp(role)
+      } else {
+        exitProp()
       }
     },
     onContextLost(fn) {

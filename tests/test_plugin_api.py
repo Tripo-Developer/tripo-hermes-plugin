@@ -349,6 +349,7 @@ def test_result_links_must_point_at_tripos_result_host(api):
     host = "tripo-data.rg1.data.tripo3d.com"
     assert api._result_allowed(f"https://{host}/tcli_x/m.glb?Policy=p&Signature=s&Key-Pair-Id=k")
     assert api._result_allowed(f"https://{host}:443/m.glb")
+    assert api._result_allowed("https://openapi-dl.data.tripo3d.com/tcli_x/m.glb?Policy=p&Signature=s&Key-Pair-Id=k")
     for url in (f"http://{host}/m.glb", f"https://{host}.evil.com/m.glb", f"https://{host}@evil.com/m.glb",
                 f"https://user@{host}/m.glb", f"https://evil.com/{host}/m.glb", f"https://x{host}/m.glb",
                 f"https://{host}:8443/m.glb", f"https://{host}:99999/m.glb", "https://openapi.tripo3d.ai/m.glb",
@@ -432,7 +433,8 @@ def test_actions_offer_each_task_types_follow_ups_with_their_credits(api, fake):
     out = api.actions(_A)
     assert (out["type"], out["spent"], out["balance"]) == ("text_to_model", 20, 30)
     rows = {r["id"]: r for r in out["actions"]}
-    assert list(rows) == ["retexture", "decimate", "resize", "rig_check", "rig", "segment", "regenerate", "playable"]
+    assert list(rows) == ["retexture", "decimate", "resize", "rig_check", "rig", "segment", "regenerate", "playable",
+                          "emotes", "prop"]
     assert rows["rig"]["message"].startswith(f'Tripo task {_A} ("prompt of a1"): rig it with tripo_rig (input "{_A}"')
     assert rows["rig"]["message"].endswith("This button message is my confirmation of the 25-credit cost.")
     assert "unreal (UE Mannequin)" in rows["rig"]["message"] and "creature" in rows["rig"]["note"]
@@ -442,12 +444,21 @@ def test_actions_offer_each_task_types_follow_ups_with_their_credits(api, fake):
     resize = rows["resize"]["message"]
     assert "scale_factor" in resize and "auto_size" not in resize and resize.endswith("of the 10-credit cost.")
     assert rows["rig_check"]["cost"] == 0 and "confirmation" not in rows["rig_check"]["message"]
-    assert [a for a, r in rows.items() if not r["affordable"]] == ["segment"]
+    assert [a for a, r in rows.items() if not r["affordable"]] == ["segment", "emotes"]
     # Game Studio: a choice of clips sets the price, so it is asked with clarify, never confirmed by the button.
     playable = rows["playable"]
     assert (playable["group"], playable["cost"], playable["choice"]) == ("game", 25, True)
     assert "tripo_rig_check" in playable["message"] and "confirmation" not in playable["message"]
-    assert [a for a, r in rows.items() if r["group"] == "game"] == ["playable"]
+    # Dances and emotes exist only as v1.0 presets, on a humanoid.
+    emotes = rows["emotes"]
+    assert (emotes["group"], emotes["cost"], emotes["choice"]) == ("game", 55, True)
+    assert "model v1.0" in emotes["message"] and "unless it is a biped" in emotes["message"]
+    assert "preset:biped:" in emotes["message"] and "confirmation" not in emotes["message"]
+    # A prop costs nothing: the web template's game takes the model as it is.
+    prop = rows["prop"]
+    assert (prop["group"], prop["cost"], prop["choice"], prop["affordable"]) == ("game", 0, False, True)
+    assert "pickup" in prop["message"] and "stand-in" in prop["message"] and "confirmation" not in prop["message"]
+    assert [a for a, r in rows.items() if r["group"] == "game"] == ["playable", "emotes", "prop"]
 
     white = _task(fake, _A)
     white["input"] = {"prompt": "prompt of a1", "texture": False, "pbr": False}

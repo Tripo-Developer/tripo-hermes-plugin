@@ -17,7 +17,7 @@ import { type ActiveTask, type ProgressState, stageWord } from './active.ts'
 import { cardChat, type ChatSender, recordedChat } from './chat.ts'
 import { type Filter, type GalleryRow, kindOf, rowFromTask, type StorageStatus, visibleRows } from './gallery.ts'
 import { extensionOf, mtlLibOf, mtlTextures, siblingPath } from './parse-model.ts'
-import { CONTROLS } from './play.ts'
+import { clipRoles, CONTROLS, emoteClips, emoteHint, PROP_ROLES, type PropRole } from './play.ts'
 import { createStage, dataUrlToBuffer, type ModelStats, type Stage } from './stage.ts'
 import { type Balance, balanceLabel } from './status.ts'
 import { TaskCard } from './task-card.tsx'
@@ -178,6 +178,7 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false, play =
   const [playing, setPlaying] = useState(true)
   const [loop, setLoop] = useState(true)
   const [gaming, setGaming] = useState(false)
+  const [prop, setProp] = useState<PropRole | null>(null)
 
   useEffect(() => {
     const el = hostRef.current
@@ -212,6 +213,7 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false, play =
     setState({ phase: 'loading' })
     setStats(null)
     setClip(0)
+    setProp(null)
     setPlaying(true)
     readFile(rest, path)
       .then(async payload => {
@@ -243,12 +245,14 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false, play =
   useEffect(() => stageRef.current?.setGrid(grid), [grid])
   useEffect(() => stageRef.current?.setLoop(loop), [loop])
   useEffect(() => stageRef.current?.setPlayMode(gaming), [gaming, stats])
+  useEffect(() => stageRef.current?.setPropPreview(prop), [prop, stats])
   useEffect(() => {
     if (play && stats?.animations.length) {
       setGaming(true)
     }
   }, [play, stats])
   const clips = stats?.animations ?? []
+  const emotes = emoteHint(emoteClips(clips, clipRoles(clips)).map(i => clips[i]))
   // Leaving Play mode resumes the clip it interrupted.
   const setGame = (on: boolean) => {
     setGaming(on)
@@ -322,7 +326,17 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false, play =
               ))}
             </select>
           )}
-          {!gaming && toggle(spin, setSpin, 'sync', 'Auto-rotate')}
+          {clips.length === 0 && (
+            <select aria-label="Prop preview" onChange={e => setProp((e.currentTarget.value || null) as PropRole | null)} style={V.select} title="Prop preview: what it does in the playable web game" value={prop ?? ''}>
+              <option value="">Prop preview</option>
+              {(Object.keys(PROP_ROLES) as PropRole[]).map(role => (
+                <option key={role} value={role}>
+                  {role[0].toUpperCase() + role.slice(1)}
+                </option>
+              ))}
+            </select>
+          )}
+          {!gaming && !prop && toggle(spin, setSpin, 'sync', 'Auto-rotate')}
           {toggle(wire, setWire, 'symbol-structure', 'Wireframe')}
           {toggle(grid, setGrid, 'symbol-numeric', 'Grid')}
           <Button aria-label="Reset view" onClick={() => stageRef.current?.resetView()} size="icon" title="Reset view" variant="ghost">
@@ -333,8 +347,9 @@ export function ModelViewer({ rest, os, path, height, autoRotate = false, play =
           </Button>
         </div>
       )}
-      {gaming && <div style={V.stats}>Click the model, then: {CONTROLS} · Esc exits</div>}
-      {stats && !gaming && (
+      {gaming && <div style={V.stats}>Click the model, then: {CONTROLS}{emotes ? ` · ${emotes}` : ''} · Esc exits</div>}
+      {prop && <div style={V.stats}>As a {prop} in the playable web game, {PROP_ROLES[prop]}</div>}
+      {stats && !gaming && !prop && (
         <div style={V.stats}>
           {file ? `${file.name} · ${fmtBytes(file.bytes)} · ` : ''}
           {fmtCount(stats.triangles)} tris · {fmtCount(stats.vertices)} verts
@@ -393,6 +408,8 @@ const ACTION_ICONS: Record<string, string> = {
   animate: 'play',
   make3d: 'symbol-misc',
   playable: 'game',
+  emotes: 'smiley',
+  prop: 'package',
   prototype: 'globe',
   engine: 'rocket',
   more_clips: 'add'

@@ -163,7 +163,7 @@ export function TaskCard({
       <div style={V.cardHead}>
         <Codicon name="symbol-misc" />
         <span style={V.cardTitle}>{name}</span>
-        {typeof info?.credits === 'number' && info.credits > 0 && <span style={V.sub}>{info.credits} cr</span>}
+        {typeof info?.credits === 'number' && info.credits > 0 && <span style={{ ...V.sub, whiteSpace: 'nowrap', flexShrink: 0 }}>{info.credits} cr</span>}
         <span style={V.spacer} />
         {done && !streaming && !path && info?.type === 'animate_retarget' && (
           <Button

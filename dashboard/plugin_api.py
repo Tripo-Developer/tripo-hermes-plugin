@@ -53,7 +53,8 @@ _USER_AGENT = "hermes-tripo-plugin/0.1.0"
 # there, so tripo_download's default tripo-out/<type>-<id8>/ folders are inside it.
 _DATA_DIR = "agent-plugin-tripo-" + hashlib.sha256(b"tripo").hexdigest()[:8]
 # Where a result link, and every redirect hop of it, may point: (scheme, host, port).
-_RESULT_ORIGINS = frozenset({("https", "tripo-data.rg1.data.tripo3d.com", 443)})
+_RESULT_ORIGINS = frozenset({("https", "openapi-dl.data.tripo3d.com", 443),
+                             ("https", "tripo-data.rg1.data.tripo3d.com", 443)})
 _MAX_FILE_BYTES = 128 * 1024 * 1024
 _MODEL_MIME = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".fbx": "application/octet-stream",
                ".obj": "model/obj", ".stl": "model/stl", ".usdz": "model/vnd.usdz+zip", ".3mf": "model/3mf"}
@@ -626,6 +627,15 @@ _ACTIONS = (
      "is not riggable. Then ask me with clarify which clips, each choice with its total (tripo_rig 25 plus 10 per "
      "tripo_animate clip): a biped idle, walk, run, jump and slash 75, or idle and walk 45; a quadruped, hexapod, "
      "octopod, serpentine or aquatic rig its one body-type clip 35; avian or others the rig alone 25."),
+    ("emotes", "Dances and emotes", 55, "55–75 credits", True, _MODELS,
+     f'rig it for dances and emotes. {_STUDIO} Run tripo_rig_check (input "{{task}}", free) first and stop unless it '
+     "is a biped. Then ask me with clarify which clips, each choice with its total (tripo_rig with model v1.0 25 plus "
+     "10 per tripo_animate clip, preset:biped:*): idle, walk, dance_01, wave_goodbye_01 and clap 75; or idle, "
+     "dance_01 and clap 55."),
+    ("prop", "Use it as a game prop", 0, "free", False, _MODELS,
+     f"put it in a playable web game as a prop. {_STUDIO} Ask me with clarify what it is in the game: a pickup, a "
+     "weapon in the hero's hand, a breakable or an obstacle; the hero is a playable character from this chat, else the "
+     "template's stand-in."),
     ("playable", "Make it playable", 10, "10–50 credits", True, ("animate_rig",),
      f'make this rig a playable game character. {_STUDIO} Ask me with clarify which clips to animate with tripo_animate '
      '(task_id "{task}", 10 credits per clip, at most 5), from what its rig type supports, each choice with its total.'),
@@ -640,11 +650,13 @@ _ACTIONS = (
      "and quote the total."),
 )
 # Rows the card lists under a Game Studio heading, and the line the card shows under a row's label.
-_GAME_ACTIONS = frozenset({"playable", "prototype", "engine", "more_clips"})
+_GAME_ACTIONS = frozenset({"playable", "emotes", "prop", "prototype", "engine", "more_clips"})
 _NOTES = {"decimate": "Triangles or quads, textures baked on",
           "rig": "Humanoids and 6 creature types · Unity, Unreal, Mixamo or VRM bones",
           "segment": "Separate parts for modular kits",
           "playable": "Rig and clips, then play it in this card",
+          "emotes": "A v1.0 humanoid rig with 90+ moves · keys 1–9 in Play mode",
+          "prop": "Pickup, weapon, breakable or obstacle in the web game",
           "prototype": "A three.js game in your folder: move, attack, enemies",
           "engine": "Godot, Unity or Unreal, with a character controller"}
 # The Download menu's conversions: each one is a new billed task, so its row sends a chat message too.

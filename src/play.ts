@@ -1,5 +1,6 @@
 /**
- * Game Studio's playable character: which clip plays what, keyboard input, and one step of movement per frame.
+ * Game Studio's playable character: which clip plays what, keyboard input, and one step of movement per frame; and
+ * what a prop does around it (a pickup, a weapon, a breakable, an obstacle).
  * Shared by the Desktop card's Play mode (stage.ts) and the playable web template, whose play.js is this file built
  * by `npm run build`. Plain numbers and DOM events, no three.js: callers hand in clip names and track arrays and
  * apply the returned pose to their model.
@@ -8,6 +9,7 @@
 export type Role = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt'
 export type Roles = Record<Role, number | null>
 export type XZ = readonly [number, number]
+export type PropRole = 'pickup' | 'weapon' | 'breakable' | 'obstacle'
 
 export interface Keys {
   forward: boolean
@@ -17,12 +19,31 @@ export interface Keys {
   run: boolean
   jump: boolean
   attack: boolean
+  /** The digit key held (1–9) to play an emote, 0 for none. */
+  emote: number
 }
 
 export interface Track {
   name: string
   times: ArrayLike<number>
   values: { readonly length: number; [index: number]: number }
+}
+
+/** A circle on the ground (world XZ): an obstacle's footprint. */
+export interface Circle {
+  x: number
+  z: number
+  r: number
+}
+
+/** A piece a breakable bursts into (see burst). */
+export interface Shard {
+  /** Where it starts, as a fraction of the model's box: x and z from -0.5 to 0.5 about its middle, y from 0 to 1 up. */
+  at: [number, number, number]
+  /** How it flies off, in model heights per second, y up. */
+  velocity: [number, number, number]
+  /** How it tumbles, in radians per second about X, Y and Z. */
+  spin: [number, number, number]
 }
 
 export interface CharacterOptions {
@@ -37,8 +58,12 @@ export interface CharacterOptions {
   left?: XZ | null
   /** A clip holding the walk's first frame, to idle in when the model has no idle clip. */
   still?: number | null
+  /** The clips the digit keys 1–9 play, in key order (see emoteClips). */
+  emotes?: readonly number[]
   /** Keep the character within this distance of where it started. */
   bounds?: number
+  /** Circles it cannot step into, in the pose's frame: obstacles' footprints grown by the character's own radius. */
+  blockers?: readonly Circle[]
 }
 
 export interface Pose {
@@ -49,7 +74,8 @@ export interface Pose {
   heading: number
   /** Forward lean in radians, about the pivot's X axis. */
   lean: number
-  role: Role
+  /** 'emote': a digit key's clip, played on the spot. */
+  role: Role | 'emote'
   /** The clip to play (null: none), its speed, and whether it plays once and holds its last frame. */
   clip: number | null
   timeScale: number
@@ -58,6 +84,8 @@ export interface Pose {
   start: boolean
   /** An attack lands this frame. */
   strike: boolean
+  /** How far through its jump, attack or emote the character is, from 0 to 1 (0 when there is none). */
+  progress: number
 }
 
 export interface Character {
@@ -79,7 +107,7 @@ const ROLE_NAMES: readonly (readonly [Role, RegExp])[] = [
   ['hurt', /hurt|damage/i]
 ]
 
-const CODES: Readonly<Record<string, keyof Keys>> = {
+const CODES: Readonly<Record<string, Exclude<keyof Keys, 'emote'>>> = {
   KeyW: 'forward',
   ArrowUp: 'forward',
   KeyS: 'back',
@@ -105,6 +133,17 @@ const JUMP = { height: 0.35, seconds: 0.6, longest: 1.1 }
 const ATTACK = { lean: 0.3, lunge: 0.12, seconds: 0.45, longest: 0.9, lands: 0.4 }
 const LEFT = /(^|[^a-z])l([^a-z]|$)|left/i
 const RIGHT = /(^|[^a-z])r([^a-z]|$)|right/i
+const RIGHT_HAND = /right_?hand|hand_?right|(^|[^a-z])r[^a-z]?hand|hand[^a-z]?r([^a-z]|$)/i
+const DIGITS = /finger|thumb|index|middle|ring|pinky|little/i
+const SWING = { back: 0.6, through: 1.6 }
+
+/** What each prop does in the playable web template's game, in the order a picker lists them. */
+export const PROP_ROLES: Readonly<Record<PropRole, string>> = {
+  pickup: 'the hero collects it, and every pickup counts toward the win',
+  weapon: 'the hero holds it in the right hand and strikes further with it',
+  breakable: 'an attack shatters it, for a point',
+  obstacle: 'the hero and the enemies have to walk around it'
+}
 
 /** The clip each role plays, by name (Tripo names a clip after its preset: walk, quadruped:walk, serpentine:march);
  *  when no name says anything, the first clip walks. */
@@ -118,6 +157,20 @@ export function clipRoles(names: readonly string[]): Roles {
     roles.walk = 0
   }
   return roles
+}
+
+/** The clips no role plays (a v1.0 rig's dances, waves, claps ...), in file order: the digit keys 1–9 play them. */
+export function emoteClips(names: readonly string[], roles: Roles): number[] {
+  const taken = new Set(Object.values(roles))
+  return names.map((_, i) => i).filter(i => !taken.has(i)).slice(0, 9)
+}
+
+/** What each digit key plays, for the controls line: "1 dance 01 · 2 clap" ('' without emotes). */
+export function emoteHint(names: readonly string[]): string {
+  return names
+    .slice(0, 9)
+    .map((name, i) => `${i + 1} ${name.replace(/^preset:/, '').replace(/^[a-z]+:/, '').replace(/[_|]+/g, ' ').trim()}`)
+    .join(' · ')
 }
 
 /** Takes the net travel out of a clip's position tracks, in place: a walk that moves off plays on the spot with its
@@ -217,8 +270,65 @@ export function inReach(pose: Pick<Pose, 'x' | 'z' | 'heading'>, x: number, z: n
   return d <= range && (d < 1e-9 || Math.abs(turnTo(pose.heading, Math.atan2(x - pose.x, z - pose.z))) <= arc)
 }
 
+/** The right hand's bone among a rig's bone names, not a finger's: Right_Hand (Tripo), RightHand, mixamorig:RightHand,
+ *  hand_r, Hand.R, and the forms three.js loads them as (mixamorigRightHand, HandR). Null when there is none. */
+export function handBone(names: readonly string[]): number | null {
+  const index = names.findIndex(name => RIGHT_HAND.test(name) && !DIGITS.test(name))
+  return index < 0 ? null : index
+}
+
+/** A weapon's swing at fraction `f` of an attack, in radians forward (0 at rest): back, through as the attack lands
+ *  (f 0.4, see Pose.strike), then home. */
+export function swingAngle(f: number): number {
+  if (!(f > 0 && f < 1)) {
+    return 0
+  }
+  const ease = (t: number) => t * t * (3 - 2 * t)
+  if (f < 0.3) {
+    return -SWING.back * ease(f / 0.3)
+  }
+  if (f < 0.5) {
+    return -SWING.back + (SWING.back + SWING.through) * ease((f - 0.3) / 0.2)
+  }
+  return SWING.through * (1 - ease((f - 0.5) / 0.5))
+}
+
+/** The shards a breakable bursts into, spread all round and upward: the same seed bursts the same way every time. */
+export function burst(count: number, seed = 1): Shard[] {
+  let s = seed >>> 0
+  const random = () => {
+    // mulberry32
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = Math.imul(s ^ (s >>> 15), s | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  return Array.from({ length: count }, (_, i) => {
+    const yaw = ((i + random()) / count) * 2 * Math.PI
+    const up = 0.35 + random() * 0.85
+    const speed = 0.6 + random() * 0.6
+    return {
+      at: [random() - 0.5, random(), random() - 0.5],
+      velocity: [Math.sin(yaw) * Math.cos(up) * speed, Math.sin(up) * speed, Math.cos(yaw) * Math.cos(up) * speed],
+      spin: [(random() - 0.5) * 12, (random() - 0.5) * 12, (random() - 0.5) * 12]
+    }
+  })
+}
+
+/** (x, z), moved out onto the edge of any circle it is inside. */
+export function outside(x: number, z: number, circles: readonly Circle[]): [number, number] {
+  for (const c of circles) {
+    const d = Math.hypot(x - c.x, z - c.z)
+    if (d < c.r && d > 1e-9) {
+      x = c.x + ((x - c.x) * c.r) / d
+      z = c.z + ((z - c.z) * c.r) / d
+    }
+  }
+  return [x, z]
+}
+
 export function noKeys(): Keys {
-  return { forward: false, back: false, left: false, right: false, run: false, jump: false, attack: false }
+  return { forward: false, back: false, left: false, right: false, run: false, jump: false, attack: false, emote: 0 }
 }
 
 /** Keys held while `el` has focus (make it focusable): typing anywhere else never moves the character, and the page
@@ -228,10 +338,15 @@ export function bindKeys(el: EventTarget): { keys: Keys; unbind: () => void } {
   const press = (down: boolean) => (event: Event) => {
     const e = event as KeyboardEvent
     const name = CODES[e.code]
-    if (name && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const digit = /^Digit([1-9])$/.exec(e.code)
+    if ((name || digit) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
       e.stopPropagation()
-      keys[name] = down
+      if (name) {
+        keys[name] = down
+      } else if (digit && (down || keys.emote === Number(digit[1]))) {
+        keys.emote = down ? Number(digit[1]) : 0
+      }
     }
   }
   const down = press(true)
@@ -282,8 +397,8 @@ export function createCharacter(options: CharacterOptions): Character {
   let heading = facing
   let speed = 0
   let time = 0
-  let held = { jump: false, attack: false }
-  let act: { role: 'jump' | 'attack'; t: number; rate: number; length: number; landed: boolean } | null = null
+  let held = { jump: false, attack: false, emote: 0 }
+  let act: { role: 'jump' | 'attack' | 'emote'; clip: number | null; t: number; rate: number; length: number; landed: boolean } | null = null
 
   return {
     facing,
@@ -298,16 +413,24 @@ export function createCharacter(options: CharacterOptions): Character {
       const mz = ahead * Math.cos(view) + aside * Math.sin(view)
       const moving = Math.hypot(mx, mz) > 1e-9
 
+      // An emote plays on the spot to its end, unless the character moves, jumps or attacks.
+      if (act?.role === 'emote' && (moving || (keys.jump && !held.jump) || (keys.attack && !held.attack))) {
+        act = null
+      }
+      const emote = keys.emote > 0 ? (options.emotes?.[keys.emote - 1] ?? null) : null
       let start = false
       if (!act && keys.jump && !held.jump) {
-        act = { role: 'jump', t: 0, landed: false, ...timing(roles.jump, JUMP.seconds, JUMP.longest) }
+        act = { role: 'jump', clip: roles.jump, t: 0, landed: false, ...timing(roles.jump, JUMP.seconds, JUMP.longest) }
         start = true
       } else if (!act && keys.attack && !held.attack) {
-        act = { role: 'attack', t: 0, landed: false, ...timing(roles.attack, ATTACK.seconds, ATTACK.longest) }
+        act = { role: 'attack', clip: roles.attack, t: 0, landed: false, ...timing(roles.attack, ATTACK.seconds, ATTACK.longest) }
+        start = true
+      } else if ((!act || act.role === 'emote') && !moving && emote !== null && keys.emote !== held.emote) {
+        act = { role: 'emote', clip: emote, t: 0, landed: false, rate: 1, length: durations[emote] || 0 }
         start = true
       }
-      held = { jump: keys.jump, attack: keys.attack }
-      const rooted = act?.role === 'attack'
+      held = { jump: keys.jump, attack: keys.attack, emote: keys.emote }
+      const rooted = act !== null && act.role !== 'jump'
 
       speed += ((moving && !rooted ? (keys.run ? sprint : pace) : 0) - speed) * (1 - Math.exp(-ACCEL * dt))
       if (moving && !rooted) {
@@ -316,26 +439,31 @@ export function createCharacter(options: CharacterOptions): Character {
       }
       x += Math.sin(heading) * speed * dt
       z += Math.cos(heading) * speed * dt
+      if (options.blockers) {
+        ;[x, z] = outside(x, z, options.blockers)
+      }
       if (options.bounds && Math.hypot(x, z) > options.bounds) {
         const k = options.bounds / Math.hypot(x, z)
         x *= k
         z *= k
       }
 
-      let role: Role = moving && !rooted ? (keys.run ? 'run' : 'walk') : 'idle'
-      let [clip, timeScale] = loop(role)
+      const base: Role = moving && !rooted ? (keys.run ? 'run' : 'walk') : 'idle'
+      let role: Pose['role'] = base
+      let [clip, timeScale] = loop(base)
       let once = false
       let y = 0
       let lean = 0
       let lunge = 0
       let strike = false
+      let progress = 0
       if (act) {
         act.t += dt
         const f = Math.min(act.t / act.length, 1)
+        progress = f
         role = act.role
-        const own = roles[act.role]
-        if (own !== null) {
-          clip = own
+        if (act.clip !== null) {
+          clip = act.clip
           timeScale = act.rate
           once = true
         } else if (act.role === 'jump') {
@@ -367,7 +495,8 @@ export function createCharacter(options: CharacterOptions): Character {
         timeScale,
         once,
         start,
-        strike
+        strike,
+        progress
       }
     }
   }

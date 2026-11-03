@@ -62,9 +62,9 @@ names on request) and adds game clips that stay in place, for 25–75 credits qu
 runs. Then:
 
 - **Play it in Hermes Desktop.** The animated model's card has a *Play* button, and the viewer a
-  Play mode: WASD or arrows move, Shift runs, Space jumps, J attacks, Esc exits. Moves the model has
-  no clip for are made up in code: an idle on a still frame, a faster walk for running, a jump arc
-  and a lunge.
+  Play mode: WASD or arrows move, Shift runs, Space jumps, J attacks, 1–9 play its emotes, Esc
+  exits. Moves the model has no clip for are made up in code: an idle on a still frame, a faster
+  walk for running, a jump arc and a lunge.
 - **Playable web prototype** (free): a three.js arena with enemies, coins, stamina and a special
   move, copied into a folder you name and served on `127.0.0.1` for your browser.
 - **Export to a game engine**: Godot takes the GLB as it is; Unity and Unreal get an FBX (5 credits,
@@ -74,6 +74,17 @@ runs. Then:
 Tripo animates a creature rig with one walk-style clip (avian and other rigs get none); for a full
 set on a dragon, the agent can offer a new model generated upright in a T-pose, which rigs as a
 humanoid.
+
+Two more start from a model:
+
+- **Dances and emotes** (55–75 credits, humanoids only): a rig of its own with Tripo's older v1.0
+  rigger, the only one with dance, greeting and sports clips, animated with up to five of them
+  (idle, walk, a dance, a wave and a clap unless you pick others). In Play mode and the web
+  prototype the clips no move uses play on the number keys 1–9.
+- **Use it as a game prop** (free): a model without a rig joins the web prototype as a pickup, a
+  weapon in the hero's right hand, a breakable or an obstacle. The hero is a playable character
+  from the same chat, else the template's capsule stand-in. In Hermes Desktop the viewer's *Prop
+  preview* shows each role on the model first.
 
 ## Spending credits: approval
 
@@ -129,7 +140,9 @@ min" and end its turn, with a background timer that brings it back to check and 
 is not blocked meanwhile. Results arrive as attachments (`MEDIA:` lines): the preview as a photo
 and the model file as a document. Telegram bots can send files up to 50 MB, Discord about 10 MB on
 servers without boosts; a larger model comes as the preview plus its path on the Hermes machine,
-with an offer of a smaller export.
+with an offer of a smaller export. An animated result also comes with a short MP4 of its motion,
+which the skill renders on the Hermes machine with headless Chromium and ffmpeg (2 to 3 minutes);
+a static model gets a turntable video when you ask for one.
 
 ## Where files go
 
@@ -138,6 +151,7 @@ name one, `<HERMES_HOME>/cache/images/tripo-<task id>/` for chat attachments. Wi
 to `tripo-out/` in the plugin's data folder
 (`~/.hermes/plugin-data/agent-plugin-tripo-<hash>/tripo-out/`), not your project. Each download
 holds the model, `preview.png` and `task.json`, and replaces files of the same name in that folder.
+Preview videos for chat apps go to `<HERMES_HOME>/cache/videos/tripo/`.
 
 ## Settings
 
@@ -181,15 +195,20 @@ you get, rendered with stock three.js:
   *Next* lists the follow-ups Tripo offers for that task with their credits: Texture it for an
   untextured model or Retexture, Remesh to a triangle or quad budget, Resize, check or add a rig
   (with engine bone names), split into parts, animate, regenerate; for an image, make a 3D model.
-  A Game Studio group follows: *Make it playable* on a model or rig, and on an animated model
-  *Playable web prototype*, *Export to a game engine* and *Add clips* ([Game Studio](#game-studio)).
+  A Game Studio group follows: *Make it playable* on a model or rig, *Dances and emotes* and *Use
+  it as a game prop* on a model, and on an animated model *Playable web prototype*, *Export to a
+  game engine* and *Add clips* ([Game Studio](#game-studio)).
   A pick sends a chat message, so the agent runs it behind the usual approval prompt; the menu
   itself never spends. *Download* saves a file Tripo made (the textured or untextured model, the preview)
   into the plugin's folder, free, and shows it; *Convert to …* sends a chat message like Next.
   *Open* shows the task in the gallery.
 - **Play mode** for an animated model: the card's *Play* button or the viewer's game-controller
-  button. Click the model, then move the character with the keyboard while the camera follows; the
-  keys act only while the viewer has focus, and Esc leaves Play mode.
+  button. Click the model, then move the character with the keyboard while the camera follows, and
+  play its emotes (the clips no move uses, such as dances) on the number keys 1–9; the keys act
+  only while the viewer has focus, and Esc leaves Play mode.
+- **Prop preview** for a model without clips: a toolbar menu shows what it would do in the web
+  prototype. A pickup bobs and spins, a weapon swings, a breakable shatters and comes back, and an
+  obstacle shows the circle nobody can walk into.
 - **Tripo 3D gallery** (⌘K → "Tripo: recent generations", the credit chip, or a card's Open): your
   recent Tripo images and models next to the ones already on this machine, with a prompt search and
   All / Images / Models filters. The selected one opens in the viewer (an image as a picture) with
@@ -246,6 +265,12 @@ Tasks and account: `tripo_plan`, `tripo_task_status`, `tripo_task_wait`, `tripo_
   template into the folder you name and serves it with Python's `http.server` through the terminal
   tool, bound to `127.0.0.1`, so only this machine can open it; the server stops with the session.
   The page loads three.js 0.180.0 from cdn.jsdelivr.net.
+- The preview videos for chat apps are rendered on this machine: the skill runs
+  `render_preview.mjs` through the terminal tool, which opens the downloaded model on a blank page
+  in a headless Chromium (the page loads the model and three.js from this machine, never a URL the
+  model names) and encodes the frames with ffmpeg. Its first run downloads
+  three.js 0.180.0 once from the npm registry (integrity-checked) into
+  `<HERMES_HOME>/cache/tripo-preview/`. The video leaves the machine only as the chat attachment.
 - The Desktop half's backend reads your balance and recent tasks from the same API with your key,
   and downloads a finished model from Tripo's result storage (no key sent) only when you open it.
   Desktop loads task previews straight from Tripo's short-lived result links.
@@ -286,7 +311,8 @@ character code the Desktop Play mode and the web prototype share; commit it with
 
 The MCP server (tripo-cli), the workflow rules the skills carry and the packaging are by VAST, the
 company behind Tripo, MIT. The Desktop viewer adapts parts of the Meshy plugin's viewer, and the
-Blender handoff (its script, references and test) adapts the Meshy plugin's, from
+Blender handoff and the chat-app preview video (each with its script, references and test) adapt
+the Meshy plugin's, from
 [Hermes Official Plugins](https://github.com/NousResearch/hermes-official-plugins) (MIT, Copyright
 (c) 2025 Nous Research); `LICENSE` carries that notice. `desktop/plugin.js` bundles three.js (MIT, its
 notice kept in the bundle) and the meshoptimizer decoder that ships with it (MIT, notice in `LICENSE`),

@@ -105,8 +105,9 @@ for (const path of shipped) {
   const rel = relative(ROOT, path);
   const text = readFileSync(path, 'utf8');
   if (rel === 'scripts/validate.mjs') continue;
-  // The international result-file CDN happens to sit under tripo3d.com: allow that one host only.
-  if (/tripo3d\.com/i.test(text.replaceAll('tripo-data.rg1.data.tripo3d.com', ''))) fail(`${rel} contains tripo3d.com (the plugin is international only)`);
+  // The international result-file CDN happens to sit under tripo3d.com: allow its two hosts only.
+  const cdn = text.replaceAll('openapi-dl.data.tripo3d.com', '').replaceAll('tripo-data.rg1.data.tripo3d.com', '');
+  if (/tripo3d\.com/i.test(cdn)) fail(`${rel} contains tripo3d.com (the plugin is international only)`);
   for (const [label, pattern] of [
     ['a Tripo API key', /\btsk_[A-Za-z0-9_-]{16,}/],
     ['a private key', /-----BEGIN [A-Z ]*PRIVATE KEY-----/],

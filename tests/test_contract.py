@@ -111,21 +111,20 @@ def test_core_finds_the_committed_desktop_bundle_inside_the_plugin_sdk():
     assert desktop_surface_hits(ROOT) == []
 
 
-def _messaging_reply_example() -> str:
-    """The reply the skill tells the agent to send with a finished model on a chat platform."""
-    doc = (ROOT / "skills" / "tripo-3d" / "references" / "messaging.md").read_text(encoding="utf-8")
-    blocks = [b for b in re.findall(r"```[^\n]*\n(.*?)```", doc, re.DOTALL) if "MEDIA:" in b]
+def _reply_example(doc: str) -> str:
+    """The reply a skill reference tells the agent to send on a chat platform."""
+    text = (ROOT / "skills" / "tripo-3d" / "references" / doc).read_text(encoding="utf-8")
+    blocks = [b for b in re.findall(r"```[^\n]*\n(.*?)```", text, re.DOTALL) if "MEDIA:" in b]
     assert len(blocks) == 1, blocks
     return blocks[0]
 
 
-def test_core_delivers_the_skills_chat_reply_as_a_photo_and_a_file_even_in_strict_media_mode(tmp_path):
-    """The streaming gateway path (Telegram's default) delivers only MEDIA: lines, so the skill's reply must be
-    MEDIA: lines to files core accepts: the preview as a photo and the model (an extension core does not list)
-    as a file. Strict mode with recency trust off leaves only core's delivery folders, and a fresh interpreter
-    makes core compute those folders from this HERMES_HOME."""
+def _deliver(tmp_path: Path, doc: str) -> dict:
+    """What core's streaming gateway path (Telegram's default), which delivers only MEDIA: lines, sends of the doc's
+    reply. Strict mode with recency trust off leaves only core's delivery folders, and a fresh interpreter makes
+    core compute those folders from this HERMES_HOME."""
     home = tmp_path / "hermes"
-    reply = _messaging_reply_example().replace("<HERMES_HOME>", str(home)).replace("<task_id>", "0abc")
+    reply = _reply_example(doc).replace("<HERMES_HOME>", str(home)).replace("<task_id>", "0abc")
     probe = textwrap.dedent("""
         import json, os, re, sys
         from pathlib import Path
@@ -138,12 +137,13 @@ def test_core_delivers_the_skills_chat_reply_as_a_photo_and_a_file_even_in_stric
             f.write_bytes(b"x")
             os.utime(f, (old, old))
         from gateway.platforms.base import BasePlatformAdapter, validate_media_delivery_path
-        from gateway.run_notifications import _IMAGE_EXTS
+        from gateway.run_notifications import _IMAGE_EXTS, _VIDEO_EXTS
         media, cleaned = BasePlatformAdapter.extract_media(reply)
         kept = BasePlatformAdapter.filter_media_delivery_paths(media)
         print(json.dumps({"files": [str(f.resolve()) for f in files], "cleaned": cleaned,
                           "kept": [str(Path(p).resolve()) for p, _ in kept],
                           "photo": [Path(p).suffix.lower() in _IMAGE_EXTS for p, _ in kept],
+                          "video": [Path(p).suffix.lower() in _VIDEO_EXTS for p, _ in kept],
                           "control": validate_media_delivery_path(str(control))}))
     """)
     env = {k: v for k, v in os.environ.items() if not k.startswith("HERMES_")}
@@ -152,7 +152,22 @@ def test_core_delivers_the_skills_chat_reply_as_a_photo_and_a_file_even_in_stric
                          text=True, encoding="utf-8", check=True).stdout
     result = json.loads(out.strip().splitlines()[-1])
     assert result["control"] is None, result  # strict mode is really on: a non-delivery folder is refused
-    assert len(result["files"]) == 2, result  # the preview and the model
     assert result["kept"] == result["files"], result
-    assert result["photo"] == [True, False], result
     assert "MEDIA:" not in result["cleaned"] and "](" not in result["cleaned"], result
+    return result
+
+
+def test_core_delivers_the_skills_chat_reply_as_a_photo_and_a_file_even_in_strict_media_mode(tmp_path):
+    """The skill's reply must be MEDIA: lines to files core accepts: the preview as a photo and the model (an
+    extension core does not list) as a file."""
+    result = _deliver(tmp_path, "messaging.md")
+    assert len(result["files"]) == 2, result  # the preview and the model
+    assert result["photo"] == [True, False], result
+
+
+def test_core_delivers_the_preview_video_as_a_video_even_in_strict_media_mode(tmp_path):
+    """render_preview.mjs writes to <HERMES_HOME>/cache/videos/tripo by default: core must keep that MP4 and send it
+    with the platform's video send."""
+    result = _deliver(tmp_path, "preview-video.md")
+    assert len(result["files"]) == 1 and result["video"] == [True], result
+    assert "/cache/videos/tripo/" in Path(result["files"][0]).as_posix(), result

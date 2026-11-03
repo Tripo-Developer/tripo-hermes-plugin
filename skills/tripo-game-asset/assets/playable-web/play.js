@@ -31,6 +31,15 @@ const JUMP = { height: 0.35, seconds: 0.6, longest: 1.1 };
 const ATTACK = { lean: 0.3, lunge: 0.12, seconds: 0.45, longest: 0.9, lands: 0.4 };
 const LEFT = /(^|[^a-z])l([^a-z]|$)|left/i;
 const RIGHT = /(^|[^a-z])r([^a-z]|$)|right/i;
+const RIGHT_HAND = /right_?hand|hand_?right|(^|[^a-z])r[^a-z]?hand|hand[^a-z]?r([^a-z]|$)/i;
+const DIGITS = /finger|thumb|index|middle|ring|pinky|little/i;
+const SWING = { back: 0.6, through: 1.6 };
+const PROP_ROLES = {
+  pickup: "the hero collects it, and every pickup counts toward the win",
+  weapon: "the hero holds it in the right hand and strikes further with it",
+  breakable: "an attack shatters it, for a point",
+  obstacle: "the hero and the enemies have to walk around it"
+};
 function clipRoles(names) {
   const roles = {};
   for (const [role, pattern] of ROLE_NAMES) {
@@ -41,6 +50,13 @@ function clipRoles(names) {
     roles.walk = 0;
   }
   return roles;
+}
+function emoteClips(names, roles) {
+  const taken = new Set(Object.values(roles));
+  return names.map((_, i) => i).filter((i) => !taken.has(i)).slice(0, 9);
+}
+function emoteHint(names) {
+  return names.slice(0, 9).map((name, i) => `${i + 1} ${name.replace(/^preset:/, "").replace(/^[a-z]+:/, "").replace(/[_|]+/g, " ").trim()}`).join(" \xB7 ");
 }
 function stripTravel(tracks) {
   let best = null;
@@ -121,18 +137,69 @@ function inReach(pose, x, z, range, arc = Math.PI / 3) {
   const d = Math.hypot(x - pose.x, z - pose.z);
   return d <= range && (d < 1e-9 || Math.abs(turnTo(pose.heading, Math.atan2(x - pose.x, z - pose.z))) <= arc);
 }
+function handBone(names) {
+  const index = names.findIndex((name) => RIGHT_HAND.test(name) && !DIGITS.test(name));
+  return index < 0 ? null : index;
+}
+function swingAngle(f) {
+  if (!(f > 0 && f < 1)) {
+    return 0;
+  }
+  const ease = (t) => t * t * (3 - 2 * t);
+  if (f < 0.3) {
+    return -SWING.back * ease(f / 0.3);
+  }
+  if (f < 0.5) {
+    return -SWING.back + (SWING.back + SWING.through) * ease((f - 0.3) / 0.2);
+  }
+  return SWING.through * (1 - ease((f - 0.5) / 0.5));
+}
+function burst(count, seed = 1) {
+  let s = seed >>> 0;
+  const random = () => {
+    s = s + 1831565813 >>> 0;
+    let t = Math.imul(s ^ s >>> 15, s | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  return Array.from({ length: count }, (_, i) => {
+    const yaw = (i + random()) / count * 2 * Math.PI;
+    const up = 0.35 + random() * 0.85;
+    const speed = 0.6 + random() * 0.6;
+    return {
+      at: [random() - 0.5, random(), random() - 0.5],
+      velocity: [Math.sin(yaw) * Math.cos(up) * speed, Math.sin(up) * speed, Math.cos(yaw) * Math.cos(up) * speed],
+      spin: [(random() - 0.5) * 12, (random() - 0.5) * 12, (random() - 0.5) * 12]
+    };
+  });
+}
+function outside(x, z, circles) {
+  for (const c of circles) {
+    const d = Math.hypot(x - c.x, z - c.z);
+    if (d < c.r && d > 1e-9) {
+      x = c.x + (x - c.x) * c.r / d;
+      z = c.z + (z - c.z) * c.r / d;
+    }
+  }
+  return [x, z];
+}
 function noKeys() {
-  return { forward: false, back: false, left: false, right: false, run: false, jump: false, attack: false };
+  return { forward: false, back: false, left: false, right: false, run: false, jump: false, attack: false, emote: 0 };
 }
 function bindKeys(el) {
   const keys = noKeys();
   const press = (down2) => (event) => {
     const e = event;
     const name = CODES[e.code];
-    if (name && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const digit = /^Digit([1-9])$/.exec(e.code);
+    if ((name || digit) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
       e.stopPropagation();
-      keys[name] = down2;
+      if (name) {
+        keys[name] = down2;
+      } else if (digit && (down2 || keys.emote === Number(digit[1]))) {
+        keys.emote = down2 ? Number(digit[1]) : 0;
+      }
     }
   };
   const down = press(true);
@@ -179,7 +246,7 @@ function createCharacter(options) {
   let heading = facing;
   let speed = 0;
   let time = 0;
-  let held = { jump: false, attack: false };
+  let held = { jump: false, attack: false, emote: 0 };
   let act = null;
   return {
     facing,
@@ -192,16 +259,23 @@ function createCharacter(options) {
       const mx = ahead * Math.sin(view) - aside * Math.cos(view);
       const mz = ahead * Math.cos(view) + aside * Math.sin(view);
       const moving = Math.hypot(mx, mz) > 1e-9;
+      if (act?.role === "emote" && (moving || keys.jump && !held.jump || keys.attack && !held.attack)) {
+        act = null;
+      }
+      const emote = keys.emote > 0 ? options.emotes?.[keys.emote - 1] ?? null : null;
       let start = false;
       if (!act && keys.jump && !held.jump) {
-        act = { role: "jump", t: 0, landed: false, ...timing(roles.jump, JUMP.seconds, JUMP.longest) };
+        act = { role: "jump", clip: roles.jump, t: 0, landed: false, ...timing(roles.jump, JUMP.seconds, JUMP.longest) };
         start = true;
       } else if (!act && keys.attack && !held.attack) {
-        act = { role: "attack", t: 0, landed: false, ...timing(roles.attack, ATTACK.seconds, ATTACK.longest) };
+        act = { role: "attack", clip: roles.attack, t: 0, landed: false, ...timing(roles.attack, ATTACK.seconds, ATTACK.longest) };
+        start = true;
+      } else if ((!act || act.role === "emote") && !moving && emote !== null && keys.emote !== held.emote) {
+        act = { role: "emote", clip: emote, t: 0, landed: false, rate: 1, length: durations[emote] || 0 };
         start = true;
       }
-      held = { jump: keys.jump, attack: keys.attack };
-      const rooted = act?.role === "attack";
+      held = { jump: keys.jump, attack: keys.attack, emote: keys.emote };
+      const rooted = act !== null && act.role !== "jump";
       speed += ((moving && !rooted ? keys.run ? sprint : pace : 0) - speed) * (1 - Math.exp(-ACCEL * dt));
       if (moving && !rooted) {
         const turn = turnTo(heading, Math.atan2(mx, mz));
@@ -209,25 +283,31 @@ function createCharacter(options) {
       }
       x += Math.sin(heading) * speed * dt;
       z += Math.cos(heading) * speed * dt;
+      if (options.blockers) {
+        ;
+        [x, z] = outside(x, z, options.blockers);
+      }
       if (options.bounds && Math.hypot(x, z) > options.bounds) {
         const k = options.bounds / Math.hypot(x, z);
         x *= k;
         z *= k;
       }
-      let role = moving && !rooted ? keys.run ? "run" : "walk" : "idle";
-      let [clip, timeScale] = loop(role);
+      const base = moving && !rooted ? keys.run ? "run" : "walk" : "idle";
+      let role = base;
+      let [clip, timeScale] = loop(base);
       let once = false;
       let y = 0;
       let lean = 0;
       let lunge = 0;
       let strike = false;
+      let progress = 0;
       if (act) {
         act.t += dt;
         const f = Math.min(act.t / act.length, 1);
+        progress = f;
         role = act.role;
-        const own = roles[act.role];
-        if (own !== null) {
-          clip = own;
+        if (act.clip !== null) {
+          clip = act.clip;
           timeScale = act.rate;
           once = true;
         } else if (act.role === "jump") {
@@ -259,22 +339,30 @@ function createCharacter(options) {
         timeScale,
         once,
         start,
-        strike
+        strike,
+        progress
       };
     }
   };
 }
 export {
   CONTROLS,
+  PROP_ROLES,
   RUN_RATE,
   bindKeys,
+  burst,
   clipRoles,
   createCharacter,
+  emoteClips,
+  emoteHint,
   facingYaw,
   firstHop,
+  handBone,
   inReach,
   leftward,
   noKeys,
+  outside,
   stripTravel,
+  swingAngle,
   turnTo
 };

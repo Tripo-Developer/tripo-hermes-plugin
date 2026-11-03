@@ -56,6 +56,23 @@ First version.
   writes a character controller for Godot or Unity and sets up Unreal's Third Person template; Add
   clips animates the same rig again. The Play mode and the web template share `src/play.ts`, built
   into the template's `play.js`.
+- Dances and emotes (55–75 credits, humanoids only): a v1.0 rig of its own, the only Tripo rig with
+  dance, greeting and sports presets, animated with up to five clips picked through `clarify`. The
+  clips no move uses play on the number keys 1–9 in the Desktop Play mode and the web template,
+  which shows the keys it has.
+- Use it as a game prop (free): a model without a rig joins the web template through
+  `CONFIG.props` as a pickup (it bobs and spins and counts toward the win), a weapon (held in the
+  hero's right hand, it reaches further and swings without an attack clip), a breakable (a strike
+  shatters it, R restores it) or an obstacle (the hero and the enemies walk around it). With no
+  character in the chat, `CONFIG.model: null` plays a capsule stand-in. On Desktop the viewer of a
+  model without clips has a Prop preview menu that shows each role on the model.
+- Preview video for chat apps, adapted from the Meshy plugin: `render_preview.mjs` renders an MP4 on
+  the Hermes machine (headless Chromium with software WebGL, then ffmpeg) into
+  `<HERMES_HOME>/cache/videos/tripo/`, which the gateway delivers in strict media mode too. An
+  animated result plays a dance, else a walk, else its first clip; a static model gets a turntable
+  on request. It reads meshopt-compressed GLBs, needs Node 22 or newer, and downloads three.js
+  0.180.0 once from the npm registry (integrity-checked); when a dependency is missing the agent
+  sends the preview image and the model instead.
 - The skills' animation presets match tripo-cli 0.9.0's rig result: a creature rig takes only its
   body-type clip, and avian and other rigs none.
 - Viewer: GLB and FBX, plus OBJ (with the `.mtl` and textures beside it), STL, USDZ (text USD

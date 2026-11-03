@@ -112,7 +112,8 @@ To animate a mesh the project already has: `tripo_import_model` `{input: "<absol
 
 For a user who wants to play a model: make it a character they control (an RPG hero, a dragon to
 roam with), try it, turn it into a small game or put it in their engine. The 3D card's Make it
-playable, Playable web prototype, Export to a game engine and Add clips messages land here.
+playable, Dances and emotes, Use it as a game prop, Playable web prototype, Export to a game engine
+and Add clips messages land here.
 
 1. **Make it playable** (25–75 credits). `tripo_rig_check` (free; not riggable → stop) →
    `tripo_rig` with the reported `rig_type` and `model: "v3.0"` for a biped or `"v2.5"` for an animal
@@ -130,14 +131,35 @@ playable, Playable web prototype, Export to a game engine and Add clips messages
    jump arc and a lunge for attacks. For a full set of clips on a dragon or another creature,
    offer a new model generated upright in a T-pose ("standing on two legs, T-pose"), which the
    check then reports as a biped; quote its credits too.
-2. **Play it** (free). Hermes Desktop: the animated model's card has a **Play** button, and the 3D
-   viewer a Play mode (WASD or arrows move, Shift runs, Space jumps, J attacks, Esc exits); point
-   the user to it. For a game to keep, or away from Desktop: a three.js arena in a folder the user
-   names, with enemies, coins, stamina and a special move: [playable-web](references/playable-web.md).
-3. **Export to a game engine.** Godot takes the GLB as it is (free); Unity and Unreal get an FBX
+2. **Dances and emotes** (55–75 credits, humanoids only). Dances, greetings and sports clips exist
+   only as v1.0 presets, so this is a rig of its own, apart from Make it playable's v3.0 rig:
+   `tripo_rig_check` (free; stop unless it reports a biped) → `tripo_rig` with `model: "v1.0"`,
+   `rig_type: "biped"` (25 credits; `spec` only `tripo` or `mixamo`; say it is Tripo's older rig) →
+   one `tripo_animate` call with `preset:biped:*` clips and `animate_in_place: true` (10 credits
+   per clip, at most five). Ask the clips with `clarify`, each choice with its total:
+   `preset:biped:idle` `preset:biped:walk` `preset:biped:dance_01` `preset:biped:wave_goodbye_01`
+   `preset:biped:clap` (75), or idle, dance_01 and clap (55). The user may swap in others:
+   `dance_02` … `dance_06`, `freaky`, `bow`, `greet_01` … `greet_04`, `wave_goodbye_02`, `cheer`,
+   `heart_pose`, `laugh_01`, `victory_celebration`, `box_01`, `front_kick_01`. v1.0 also has
+   `run`, `jump` and `slash`, so the same rig plays the game too. The clips no move uses (dances,
+   waves) go on the number keys 1–9, in file order, in Play mode and in the web prototype.
+3. **Use it as a game prop** (free). A model without a rig joins the web prototype's game. Ask with
+   `clarify` what it is there: a **pickup** (it bobs and spins; collecting every one, with the
+   coins, wins), a **weapon** (in the hero's right hand, reaching further), a **breakable** (a
+   strike shatters it, for a point) or an **obstacle** (nobody walks through it). Download it into
+   the game's folder and add it to `CONFIG.props` with its role, `count` and `height` in metres (a
+   weapon's length). The hero is a playable character from this chat, else the template's capsule
+   stand-in: [playable-web](references/playable-web.md#props). On Desktop, the model card's viewer
+   previews each role first (Prop preview in its toolbar).
+4. **Play it** (free). Hermes Desktop: the animated model's card has a **Play** button, and the 3D
+   viewer a Play mode (WASD or arrows move, Shift runs, Space jumps, J attacks, 1–9 play the
+   emotes, Esc exits); point the user to it. For a game to keep, or away from Desktop: a three.js
+   arena in a folder the user names, with enemies, coins, stamina and a special move:
+   [playable-web](references/playable-web.md).
+5. **Export to a game engine.** Godot takes the GLB as it is (free); Unity and Unreal get an FBX
    from `tripo_convert` (5 credits, 10 with options). Controllers, import settings and engine
    plugins: [engine-handoff](references/engine-handoff.md).
-4. **Add clips** (10 credits per clip): `tripo_animate` on the rig task (the animation task's
+6. **Add clips** (10 credits per clip): `tripo_animate` on the rig task (the animation task's
    `original_model_id`) with the clips the animation has plus the new ones, at most five, so they
    stay in one file; the old clips are billed again. To pay only for new clips, animate just those:
    the web prototype loads them as a second file (`CONFIG.clips`).
