@@ -39,7 +39,7 @@ report the credits used.
 ## Prerequisites
 
 - The `tripo` plugin installed and enabled, then a NEW Hermes session so the MCP tools load.
-  The first start downloads Hermes' managed Node.js and the latest tripo-cli; when the tools are
+  The first start downloads Hermes' managed Node.js and the pinned tripo-cli; when the tools are
   missing, follow How to Run below.
 - A Tripo API key from an international Tripo account, created at developers.tripo3d.ai/en/keys.
   It goes into Hermes Desktop **Settings → Plugins → Tripo**, or `hermes config set TRIPO_API_KEY tsk_...`
@@ -191,6 +191,9 @@ first paid call.
    without a task_id, means the task may exist with credits frozen. Do not automatically retry.
    Check `tripo_balance` (`frozen`) and recent `tripo_usage`, tell the user what is known, and
    resubmit only with their explicit yes. `tripo_task_list` requires known task ids.
+   Insufficient credits (error `2010`): stop at once. Do not retry, resubmit with other parameters
+   or models, or call other billed tools; give the user the top-up link from the error and wait
+   until they confirm the top-up.
 6. **Download** with `tripo_download` (free, asks for approval): it fetches fresh links itself and
    saves the model, `preview.png` and `task.json`, returning absolute paths. Pass an absolute
    `output_dir` when the user names a folder or the project needs the file; without it files land

@@ -8,10 +8,10 @@ FBX, OBJ, STL, USDZ, 3MF).
 This is a portable [Agent Plugins v1](https://agent-plugins.org) package. One install ships:
 
 - `mcp.json`: Tripo's official command-line tool [tripo-cli](https://www.npmjs.com/package/tripo-cli)
-  (MIT) as a local MCP server, launched as `npx -y tripo-cli@latest mcp --toolset full` over
-  stdio for every new session while the plugin is enabled, so each session runs the newest release.
-  It serves the same tools as Tripo's hosted MCP server, plus local file paths and
-  `tripo_download`. No `mcp_servers` edit in config.yaml.
+  (MIT) as a local MCP server, launched as `npx -y tripo-cli@0.11.1 mcp --toolset full` over
+  stdio for every new session while the plugin is enabled. It serves the same tools as Tripo's
+  hosted MCP server, plus local file paths and `tripo_download`. No `mcp_servers` edit in
+  config.yaml.
 - `skills/tripo-3d/` and `skills/tripo-game-asset/`: workflow skills. They carry the server's own
   rules (plan and confirm before spending, keep polling until a task finishes, never re-create an
   uncertain task, report the credits used), because Hermes does not pass MCP server instructions
@@ -44,8 +44,8 @@ an STL for printing".
 
 Requirements: nothing beyond Hermes. Hermes runs `npx` with its own managed Node.js and npm, which
 it downloads on first use; on platforms it ships no build for, Node.js 20+ with `npx` on PATH is
-needed. Each start also asks npm for the latest tripo-cli and downloads a new release into npm's
-cache. If a start times out on a slow connection, start a new session once the downloads are done.
+needed. The first start also downloads the pinned package into npm's cache. If that first start
+times out on a slow connection, start a new session once the downloads are done.
 
 Already added Tripo's hosted MCP server to config.yaml (`mcp_servers.tripo`, for example from
 Hermes' MCP catalog)? That entry has the same name and replaces this plugin's server, so local file
@@ -256,8 +256,7 @@ Tasks and account: `tripo_plan`, `tripo_task_status`, `tripo_task_wait`, `tripo_
 - tripo-cli appends each submitted task (task id, type and the request parameters, prompt included)
   to `history.jsonl` in `tripo-home/` inside the plugin's data folder. It does not read or write
   `~/.tripo`, so a tripo-cli you use in a terminal keeps its own key and history.
-- Each start checks the npm registry for `tripo-cli@latest` and downloads a new release when there
-  is one.
+- The first start downloads `tripo-cli@0.11.1` from the npm registry.
 - In chat apps the skill uses Hermes' terminal tool: `hermes config path` to find the media folder,
   `ls -l` to check a file's size before attaching it, and a background `sleep … && echo` timer that
   wakes the chat when a job should be done.
@@ -285,14 +284,13 @@ Tripo also runs a hosted MCP server (OAuth sign-in, no local install). This plug
 tool set locally because local file inputs (absolute paths), downloads to disk, chat attachments
 and the Desktop cards all need the server on the machine that holds the files.
 
-## tripo-cli version
+## Version pinning
 
-`mcp.json` runs `tripo-cli@latest`, so a new tripo-cli release reaches every installed copy at its
-next session start, without a plugin update or a SHA bump in the
+`mcp.json` pins `tripo-cli@0.11.1`. Bumping it is a commit here (with `tests/fixtures/tools-list.json`
+regenerated from the new version; `node scripts/validate.mjs` checks they match) followed by a
+reviewed SHA bump in the
 [hermes-agent plugin catalog](https://github.com/NousResearch/hermes-agent/tree/main/plugin-catalog).
-`tests/fixtures/tools-list.json` is the `tools/list` of the release the skills were last checked
-against (`node scripts/validate.mjs` checks the docs against it); when a release changes the tools,
-regenerate it and update the skills.
+`@latest` is deliberately not used.
 
 ## Development
 

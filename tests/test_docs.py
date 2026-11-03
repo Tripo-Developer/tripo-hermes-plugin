@@ -202,6 +202,8 @@ def test_model_priority_task_inputs_and_uncertain_submissions():
     assert "`tripo_smart_segment` takes a file token, URL or local path, not a task id" in main
     assert "even without a task_id, means the task may exist" in main
     assert "Do not automatically retry" in main
+    assert "Insufficient credits (error `2010`): stop at once" in main
+    assert "give the user the top-up link from the error and wait until they confirm the top-up" in main
     assert "if the amount or action changes, or the cost is now unknown, re-plan" in main
     assert "each with the ORIGINAL generation task as `input`" in workflows
 

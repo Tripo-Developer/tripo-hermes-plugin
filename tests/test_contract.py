@@ -40,11 +40,11 @@ def package(tmp_path, monkeypatch):
     return load_agent_plugin(root, home / "plugin-data" / "tripo")
 
 
-def test_core_loads_the_package_as_an_untrusted_server_with_its_skills(package):
+def test_core_loads_the_package_as_an_untrusted_pinned_server_with_its_skills(package):
     server = package.mcp_servers["tripo"]
     assert server["trust"] == "untrusted"  # every call that is not read-only asks first
     args = [str(a) for a in server.get("args", [])]
-    assert "tripo-cli@latest" in args, args
+    assert any(re.fullmatch(r"tripo-cli@\d+\.\d+\.\d+", a) for a in args), args  # pinned, never @latest
     assert args[-3:] == ["mcp", "--toolset", "full"], args
     assert [s.name for s in package.skills] == ["tripo-3d", "tripo-game-asset"]
     # A declaration key this core does not know yet may only warn; anything else is a broken package.
