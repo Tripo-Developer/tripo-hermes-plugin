@@ -36,7 +36,7 @@ const SETTINGS_HREF = '/settings?tab=plugins&agent=tripo'
 
 const plugin: HermesPlugin = {
   id: 'tripo',
-  name: 'Tripo 3D',
+  name: 'Tripo3D',
   description: 'View Tripo 3D models inline in chat, follow running Tripo tasks, browse recent generations and see your credit balance.',
   register(ctx) {
     // Credits and preferences belong to the profile ctx.rest is routed to: the store re-reads them on a switch.
