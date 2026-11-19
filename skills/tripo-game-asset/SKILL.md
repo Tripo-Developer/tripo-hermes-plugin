@@ -1,7 +1,7 @@
 ---
 name: tripo-game-asset
 description: "Recipes for game-ready 3D assets with Tripo, wired into the game project: low-poly props on a face budget, hero assets (PBR only on request), LOD chains, rigged characters with locomotion clips for Unity, Unreal, Godot or Three.js, and Game Studio: a model turned into a character the user controls, played in the Desktop card, as a three.js web game or in an engine with a character controller. Use when the user is building a game or real-time 3D scene and needs props, characters, placeholder art, LODs or an animated rig, asks about face budgets, polycount, a game-ready model, or importing a generated model into Unity, Unreal or Godot, or wants to play a model or make it a playable game character, rather than a single one-off model."
-version: 0.1.0
+version: 0.1.1
 author: VAST
 license: MIT
 metadata:

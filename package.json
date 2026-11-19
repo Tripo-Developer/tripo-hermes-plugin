@@ -1,6 +1,6 @@
 {
   "name": "hermes-tripo-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Tripo 3D viewer for Hermes Desktop: inline transcript cards with Next and Download menus, a Tripo 3D gallery and a credit chip, rendered with three.js.",
   "license": "MIT",

@@ -57,7 +57,9 @@ def test_core_runs_the_server_in_the_plugins_data_folder_on_the_international_ap
     assert data.parent.name == "plugin-data", data  # ${PLUGIN_DATA}: downloads never land in a project by default
     env = server["env"]
     assert Path(env["TRIPO_HOME"]).parent == data, env  # the CLI's history stays out of ~/.tripo
-    assert env["TRIPO_REGION"] == "ov" and env["TRIPO_ANALYTICS_ENABLED"] == "0", env
+    assert env["TRIPO_REGION"] == "ov", env
+    assert env["TRIPO_CLIENT_APP"] == "hermes" and env["TRIPO_DISTRIBUTION_CHANNEL"] == "hermes_plugin", env
+    assert "TRIPO_ANALYTICS_ENABLED" not in env, env
 
 
 def test_core_hands_the_server_the_profiles_tripo_key_and_no_other_credential(package, monkeypatch):

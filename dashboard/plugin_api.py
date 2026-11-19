@@ -48,7 +48,7 @@ router = APIRouter()
 
 _API = "https://openapi.tripo3d.ai"
 _KEY_ENV = "TRIPO_API_KEY"
-_USER_AGENT = "hermes-tripo-plugin/0.1.0"
+_USER_AGENT = "hermes-tripo-plugin/0.1.1"
 # Hermes keeps a portable plugin's data in plugin-data/agent-plugin-<slug>-<sha256(name)[:8]>. The MCP server runs
 # there, so tripo_download's default tripo-out/<type>-<id8>/ folders are inside it.
 _DATA_DIR = "agent-plugin-tripo-" + hashlib.sha256(b"tripo").hexdigest()[:8]

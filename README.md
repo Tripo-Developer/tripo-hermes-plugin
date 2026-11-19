@@ -249,10 +249,12 @@ Tasks and account: `tripo_plan`, `tripo_task_status`, `tripo_task_wait`, `tripo_
 - The server sends prompts, the images and models you reference by path or URL, and task requests
   to Tripo's API (`openapi.tripo3d.ai`) under your key. `tripo_upload_image` fetches the image URL on
   this machine first (public addresses only, up to 20 MB) and uploads the bytes to Tripo.
-- Analytics are off: the plugin sets `TRIPO_ANALYTICS_ENABLED=0`, so tripo-cli sends no usage
-  events and makes no account lookup for them. `TRIPO_REGION=ov` pins the international API.
+- tripo-cli sends usage analytics (tool name, result, task id and type, model, credits and durations;
+  never prompts, file contents, paths or your key) and looks up your Tripo account id for them. The
+  plugin tags these events `TRIPO_CLIENT_APP=hermes` and `TRIPO_DISTRIBUTION_CHANNEL=hermes_plugin`.
+  `TRIPO_REGION=ov` pins the international API.
 - Hermes passes MCP servers a filtered environment; this server gets only `TRIPO_API_KEY` from your
-  profile, plus the plugin's fixed `TRIPO_HOME`, `TRIPO_REGION` and `TRIPO_ANALYTICS_ENABLED`.
+  profile, plus the plugin's fixed `TRIPO_HOME`, `TRIPO_REGION`, `TRIPO_CLIENT_APP` and `TRIPO_DISTRIBUTION_CHANNEL`.
 - tripo-cli appends each submitted task (task id, type and the request parameters, prompt included)
   to `history.jsonl` in `tripo-home/` inside the plugin's data folder. It does not read or write
   `~/.tripo`, so a tripo-cli you use in a terminal keeps its own key and history.

@@ -1,7 +1,7 @@
 ---
 name: tripo-3d
 description: "Create 3D models with Tripo from a text prompt, one image or several views, then texture, rig, animate, retopologize, segment or convert them (GLB, FBX, OBJ, STL, USDZ, 3MF). Use when the user asks for a 3D model, prop, character, game asset, rigged or animated character, AR file, 3D print or an image made with Tripo, wants to process a model they already have (including an optimized Blender copy for game testing), or asks about their Tripo credits or earlier Tripo tasks."
-version: 0.1.0
+version: 0.1.1
 author: VAST
 license: MIT
 metadata:
