@@ -10,6 +10,7 @@
         "TRIPO_API_KEY": "${TRIPO_API_KEY}",
         "TRIPO_HOME": "${PLUGIN_DATA}/tripo-home",
         "TRIPO_REGION": "ov",
+        "TRIPO_ANALYTICS_ENABLED": "0",
         "TRIPO_CLIENT_APP": "hermes",
         "TRIPO_DISTRIBUTION_CHANNEL": "hermes_plugin"
       }

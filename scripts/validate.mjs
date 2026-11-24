@@ -66,8 +66,8 @@ check(launch.cwd === '${PLUGIN_DATA}', 'cwd is the plugin data directory');
 check(launch.env?.TRIPO_API_KEY === '${TRIPO_API_KEY}', 'TRIPO_API_KEY is filled in by Hermes at connect time');
 check(launch.env?.TRIPO_HOME?.startsWith('${PLUGIN_DATA}/'), 'TRIPO_HOME is under the plugin data directory');
 check(launch.env?.TRIPO_REGION === 'ov', 'international region only (TRIPO_REGION=ov)');
+check(launch.env?.TRIPO_ANALYTICS_ENABLED === '0', 'telemetry off by default');
 check(launch.env?.TRIPO_CLIENT_APP === 'hermes' && launch.env?.TRIPO_DISTRIBUTION_CHANNEL === 'hermes_plugin', 'analytics attribute calls to the Hermes plugin');
-check(!('TRIPO_ANALYTICS_ENABLED' in launch.env), 'analytics follow the tripo-cli default (no fixed opt-out)');
 check(fixture.tripo_cli === pin && fixture.toolset === 'full', `the tool snapshot comes from tripo-cli ${fixture.tripo_cli} full (matches the pin)`);
 
 console.log('Approval and billing');

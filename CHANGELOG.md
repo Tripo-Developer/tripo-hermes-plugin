@@ -2,10 +2,9 @@
 
 ## 0.1.1
 
-- Replace `TRIPO_ANALYTICS_ENABLED=0` in `mcp.json` with `TRIPO_CLIENT_APP=hermes` and
-  `TRIPO_DISTRIBUTION_CHANNEL=hermes_plugin` so `tripo-cli` attributes usage analytics
-  (tool name, result, task id/type, model, credits and durations; no prompts, file contents,
-  paths or keys) to the Hermes plugin, and disclose this in `README.md`.
+- Add `TRIPO_CLIENT_APP=hermes` and `TRIPO_DISTRIBUTION_CHANNEL=hermes_plugin` to `mcp.json` so
+  `tripo-cli` labels its usage analytics with the Hermes plugin. Analytics stay off by default
+  (`TRIPO_ANALYTICS_ENABLED=0`).
 - Update the validator and contract tests for the new attribution environment variables.
 
 ## 0.1.0
